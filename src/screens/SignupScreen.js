@@ -6,20 +6,35 @@ import VeloraInput from '../components/VeloraInput';
 import { useAuth } from '../context/AuthContext';
 
 const SignupScreen = ({ navigation }) => {
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
 
     const handleSignup = async () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Please enter both email and password');
+        if (!name || !email || !password) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert('Error', 'Password must be at least 6 characters');
             return;
         }
 
         setIsLoading(true);
         try {
-            await register(email, password);
+            // Split name into first and last name
+            const nameParts = name.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            await register(email, password, {
+                displayName: name,
+                firstName,
+                lastName
+            });
             Alert.alert('Success', 'Account created successfully!');
             navigation.reset({
                 index: 0,
@@ -44,6 +59,13 @@ const SignupScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.formCard}>
+                    <VeloraInput
+                        label="FULL NAME"
+                        placeholder="John Doe"
+                        value={name}
+                        onChangeText={setName}
+                        autoCapitalize="words"
+                    />
                     <VeloraInput
                         label="EMAIL ADDRESS"
                         placeholder="name@example.com"

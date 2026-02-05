@@ -1,236 +1,338 @@
-import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    Image,
-    SafeAreaView
-} from 'react-native';
-import { theme } from '../theme';
+import React, { useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import GlassCard from '../components/GlassCard';
+import { theme } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import {
+    getUserDisplayName,
+    getUserInitials,
+    getFormattedAddress,
+    isProfileComplete,
+    getLastLoginFormatted,
+    getUserStatsSummary
+} from '../utils/userUtils';
 
-const ProfileScreen = ({ navigation, isTab = false }) => {
-    const MENU_ITEMS = [
-        { id: 'orders', title: 'My Orders', icon: 'package-variant-closed', route: 'MyOrders' },
-        { id: 'wishlist', title: 'Wishlist', icon: 'heart-outline', route: 'Wishlist' },
-        { id: 'addresses', title: 'Addresses', icon: 'map-marker-outline', route: 'Checkout' }, // Reuse
-        { id: 'settings', title: 'Settings', icon: 'cog-outline', route: 'Settings' },
-        { id: 'logout', title: 'Logout', icon: 'logout', route: 'Login', color: '#FF3B30' },
-    ];
+const ProfileScreen = ({ navigation }) => {
+    const { user, userData, logout } = useAuth();
+
+    // Prevent tab bar from hiding on scroll
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            tabBarStyle: {
+                position: 'absolute',
+                backgroundColor: theme.colors.white,
+                borderTopWidth: 1,
+                borderTopColor: theme.colors.lightGray,
+                height: 60,
+                paddingBottom: 8,
+            }
+        });
+    }, [navigation]);
+
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
+
+    const stats = getUserStatsSummary(userData);
+    const displayName = getUserDisplayName(userData);
+    const initials = getUserInitials(userData);
+    const lastLogin = getLastLoginFormatted(userData);
+    const profileComplete = isProfileComplete(userData);
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={isTab && { paddingBottom: 100 }}>
-                {/* User Header */}
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+                scrollEventThrottle={16}
+            >
+                {/* Header */}
                 <View style={styles.header}>
+                    <Text style={styles.headerTitle}>PROFILE</Text>
+                </View>
+
+                {/* Profile Card */}
+                <View style={styles.profileCard}>
+                    {/* Avatar */}
                     <View style={styles.avatarContainer}>
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200' }}
-                            style={styles.avatar}
-                        />
-                        <TouchableOpacity style={styles.editBtn}>
-                            <MaterialCommunityIcons name="pencil" size={16} color={theme.colors.white} />
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.userName}>SNEHAL PINJARI</Text>
-                    <Text style={styles.userEmail}>snehal.p@example.com</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>ELITE MEMBER</Text>
-                    </View>
-                </View>
-
-                {/* Account Stats */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statValue}>12</Text>
-                        <Text style={styles.statLabel}>Orders</Text>
-                    </View>
-                    <View style={[styles.statBox, styles.statBorder]}>
-                        <Text style={styles.statValue}>4</Text>
-                        <Text style={styles.statLabel}>Wishlist</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statValue}>2.4k</Text>
-                        <Text style={styles.statLabel}>Points</Text>
-                    </View>
-                </View>
-
-                {/* Menu List */}
-                <View style={styles.menuContainer}>
-                    {MENU_ITEMS.map((item) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={styles.menuItem}
-                            onPress={() => navigation.navigate(item.route)}
-                        >
-                            <View style={styles.menuLeft}>
-                                <View style={styles.iconBox}>
-                                    <MaterialCommunityIcons name={item.icon} size={22} color={item.color || theme.colors.black} />
-                                </View>
-                                <Text style={[styles.menuTitle, item.color && { color: item.color }]}>{item.title}</Text>
+                        {userData?.photoURL ? (
+                            <Image source={{ uri: userData.photoURL }} style={styles.avatar} />
+                        ) : (
+                            <View style={styles.avatarPlaceholder}>
+                                <Text style={styles.avatarText}>{initials}</Text>
                             </View>
-                            <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.lightGray} />
-                        </TouchableOpacity>
-                    ))}
+                        )}
+                    </View>
+
+                    {/* User Info */}
+                    <Text style={styles.userName}>{displayName}</Text>
+                    <Text style={styles.userEmail}>{userData?.email}</Text>
+
+                    {/* Profile Completion */}
+                    {!profileComplete && (
+                        <View style={styles.completionBadge}>
+                            <MaterialCommunityIcons name="alert-circle" size={16} color={theme.colors.primary} />
+                            <Text style={styles.completionText}>Complete your profile</Text>
+                        </View>
+                    )}
                 </View>
 
-                {/* Promo Card */}
-                <GlassCard style={styles.promoCard}>
-                    <View style={styles.promoContent}>
-                        <View>
-                            <Text style={styles.promoTitle}>SHARE THE STYLE</Text>
-                            <Text style={styles.promoSub}>Get ₹500 for every friend you refer.</Text>
+                {/* Stats */}
+                {stats && (
+                    <View style={styles.statsContainer}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{stats.orders}</Text>
+                            <Text style={styles.statLabel}>Orders</Text>
                         </View>
-                        <MaterialCommunityIcons name="gift-outline" size={32} color={theme.colors.black} />
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{stats.spent}</Text>
+                            <Text style={styles.statLabel}>Spent</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{stats.wishlist}</Text>
+                            <Text style={styles.statLabel}>Wishlist</Text>
+                        </View>
                     </View>
-                </GlassCard>
+                )}
 
-                <View style={{ height: 100 }} />
+                {/* User Details */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>ACCOUNT DETAILS</Text>
+
+                    <InfoRow
+                        icon="account"
+                        label="Full Name"
+                        value={userData?.displayName || 'Not set'}
+                    />
+                    <InfoRow
+                        icon="email"
+                        label="Email"
+                        value={userData?.email}
+                    />
+                    <InfoRow
+                        icon="phone"
+                        label="Phone"
+                        value={userData?.phone || 'Not set'}
+                    />
+                    <InfoRow
+                        icon="map-marker"
+                        label="Address"
+                        value={getFormattedAddress(userData) || 'Not set'}
+                    />
+                </View>
+
+                {/* Metadata */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>ACCOUNT INFO</Text>
+
+                    <InfoRow
+                        icon="shield-account"
+                        label="Role"
+                        value={userData?.role?.toUpperCase() || 'CUSTOMER'}
+                    />
+                    <InfoRow
+                        icon="login"
+                        label="Last Login"
+                        value={lastLogin}
+                    />
+                    <InfoRow
+                        icon="counter"
+                        label="Login Count"
+                        value={`${userData?.metadata?.loginCount || 0} times`}
+                    />
+                    <InfoRow
+                        icon="account-check"
+                        label="Provider"
+                        value={userData?.provider?.toUpperCase() || 'EMAIL'}
+                    />
+                </View>
+
+                {/* Actions */}
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <MaterialCommunityIcons name="logout" size={20} color={theme.colors.white} />
+                    <Text style={styles.logoutButtonText}>LOGOUT</Text>
+                </TouchableOpacity>
+
+                <View style={styles.bottomSpacer} />
             </ScrollView>
         </SafeAreaView>
     );
 };
+
+// Info Row Component
+const InfoRow = ({ icon, label, value }) => (
+    <View style={styles.infoRow}>
+        <View style={styles.infoLeft}>
+            <MaterialCommunityIcons name={icon} size={20} color={theme.colors.black} />
+            <Text style={styles.infoLabel}>{label}</Text>
+        </View>
+        <Text style={styles.infoValue}>{value}</Text>
+    </View>
+);
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.white,
     },
+    scrollContent: {
+        paddingBottom: 80, // Extra padding for tab bar
+    },
     header: {
+        padding: 24,
+        paddingTop: 12,
+    },
+    headerTitle: {
+        ...theme.typography.header,
+        fontSize: 32,
+    },
+    profileCard: {
         alignItems: 'center',
-        paddingVertical: 40,
-        backgroundColor: theme.colors.gray,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+        padding: 24,
+        marginHorizontal: 24,
+        marginBottom: 16,
+        backgroundColor: theme.colors.white,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.colors.black,
     },
     avatarContainer: {
-        position: 'relative',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 4,
-        borderColor: theme.colors.white,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
     },
-    editBtn: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 32,
-        height: 32,
+    avatarPlaceholder: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
         backgroundColor: theme.colors.black,
-        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: theme.colors.white,
+    },
+    avatarText: {
+        ...theme.typography.header,
+        fontSize: 32,
+        color: theme.colors.white,
     },
     userName: {
         ...theme.typography.header,
-        fontSize: 22,
-        letterSpacing: 2,
+        fontSize: 24,
+        marginBottom: 4,
     },
     userEmail: {
         ...theme.typography.body,
-        color: theme.colors.darkGray,
-        marginTop: 4,
+        color: theme.colors.gray,
     },
-    badge: {
-        marginTop: 15,
-        backgroundColor: theme.colors.black,
+    completionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 20,
+        backgroundColor: theme.colors.lightGray,
+        borderRadius: 12,
     },
-    badgeText: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        color: theme.colors.white,
-        fontWeight: '900',
+    completionText: {
+        ...theme.typography.body,
+        fontSize: 12,
+        marginLeft: 4,
+        color: theme.colors.primary,
     },
-    statsRow: {
+    statsContainer: {
         flexDirection: 'row',
-        paddingVertical: 30,
         marginHorizontal: 24,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
+        marginBottom: 24,
+        padding: 20,
+        backgroundColor: theme.colors.black,
+        borderRadius: 16,
     },
-    statBox: {
+    statItem: {
         flex: 1,
         alignItems: 'center',
     },
-    statBorder: {
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderColor: theme.colors.gray,
-    },
     statValue: {
         ...theme.typography.header,
-        fontSize: 18,
+        fontSize: 20,
+        color: theme.colors.white,
+        marginBottom: 4,
     },
     statLabel: {
         ...theme.typography.body,
         fontSize: 12,
-        color: theme.colors.darkGray,
-        marginTop: 4,
+        color: theme.colors.white,
+        opacity: 0.7,
     },
-    menuContainer: {
-        paddingHorizontal: 24,
-        paddingTop: 10,
+    statDivider: {
+        width: 1,
+        backgroundColor: theme.colors.white,
+        opacity: 0.2,
     },
-    menuItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 18,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.03)',
+    section: {
+        marginHorizontal: 24,
+        marginBottom: 24,
     },
-    menuLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    iconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: 'rgba(0,0,0,0.03)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    menuTitle: {
-        ...theme.typography.body,
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    promoCard: {
-        margin: 24,
-        padding: 24,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.03)',
-    },
-    promoContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    promoTitle: {
+    sectionTitle: {
         ...theme.typography.header,
-        fontSize: 16,
-        letterSpacing: 1,
+        fontSize: 14,
+        marginBottom: 12,
+        opacity: 0.6,
     },
-    promoSub: {
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.lightGray,
+    },
+    infoLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    infoLabel: {
         ...theme.typography.body,
-        fontSize: 12,
-        color: theme.colors.darkGray,
-        marginTop: 4,
-    }
+        marginLeft: 12,
+        flex: 1,
+    },
+    infoValue: {
+        ...theme.typography.body,
+        fontWeight: '600',
+        textAlign: 'right',
+        flex: 1,
+    },
+    logoutButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: 24,
+        padding: 16,
+        backgroundColor: theme.colors.black,
+        borderRadius: 28,
+    },
+    logoutButtonText: {
+        ...theme.typography.button,
+        color: theme.colors.white,
+        marginLeft: 8,
+    },
+    bottomSpacer: {
+        height: 40,
+    },
 });
 
 export default ProfileScreen;

@@ -59,6 +59,13 @@ const ProfileScreen = ({ navigation }) => {
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>PROFILE</Text>
+                    <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => navigation.navigate('EditProfile')}
+                    >
+                        <MaterialCommunityIcons name="pencil" size={20} color={theme.colors.black} />
+                        <Text style={styles.editButtonText}>EDIT</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Profile Card */}
@@ -193,10 +200,29 @@ const styles = StyleSheet.create({
     header: {
         padding: 24,
         paddingTop: 12,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     headerTitle: {
         ...theme.typography.header,
         fontSize: 32,
+    },
+    editButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: theme.colors.white,
+        borderWidth: 1,
+        borderColor: theme.colors.black,
+        borderRadius: 20,
+    },
+    editButtonText: {
+        ...theme.typography.body,
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
     },
     profileCard: {
         alignItems: 'center',

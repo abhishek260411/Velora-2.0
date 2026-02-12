@@ -2,41 +2,59 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, query, limit, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, query, limit, onSnapshot, orderBy, Timestamp } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
     Package,
     ShoppingCart,
     Users,
     IndianRupee,
     TrendingUp,
-    Clock
+    Clock,
+    AlertCircle
 } from "lucide-react";
 
 interface Order {
     id: string;
     customerName?: string;
-    total?: string | number;
+    total?: number;
     status?: string;
+    createdAt?: Timestamp;
+    date?: string;
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+    const [lastUpdated, setLastUpdated] = useState<string>("Just now");
+    const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState({
         products: 42,
         orders: 128,
         users: 856,
-        revenue: "₹1,24,500"
+        revenue: "₹1,24,500",
+        growth: "+12.5%"
     });
 
     useEffect(() => {
         // Real-time listener for recent orders
-        const q = query(collection(db, "orders"), limit(5));
+        const q = query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(5));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const ordersData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Order));
+            const ordersData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    total: Number(data.total) || 0,
+                } as Order;
+            });
             setRecentOrders(ordersData);
+            setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+            setError(null);
+        }, (err) => {
+            console.error("Dashboard Sync Error:", err);
+            setError("Unable to sync live data");
         });
 
         return () => unsubscribe();
@@ -59,9 +77,16 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center space-x-2 text-xs font-medium text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
                     <Clock size={14} />
-                    <span>Last updated: Just now</span>
+                    <span>Last updated: {lastUpdated}</span>
                 </div>
             </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center space-x-3 text-red-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertCircle size={18} />
+                    <span className="text-sm font-medium">{error}</span>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -75,7 +100,7 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="flex items-center text-green-500 text-xs font-bold">
                                     <TrendingUp size={14} className="mr-1" />
-                                    <span>+12%</span>
+                                    <span>{stats.growth || "N/A"}</span>
                                 </div>
                             </div>
                             <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">{card.title}</p>
@@ -115,21 +140,21 @@ export default function DashboardPage() {
                     <h3 className="text-xs md:text-sm font-black tracking-widest text-gray-400 uppercase mb-4 md:mb-6">QUICK ACTIONS</h3>
                     <div className="space-y-3 md:space-y-4">
                         <button
-                            onClick={() => window.location.href = '/cms'}
+                            onClick={() => router.push('/admin/cms')}
                             className="w-full flex items-center justify-between p-3 md:p-4 bg-white rounded-2xl border border-gray-100 hover:border-black transition-all group"
                         >
                             <span className="font-bold text-xs md:text-sm group-hover:text-black">Update Hero Banner</span>
                             <Package size={16} className="group-hover:scale-110 transition-transform" />
                         </button>
                         <button
-                            onClick={() => window.location.href = '/products'}
+                            onClick={() => router.push('/admin/products')}
                             className="w-full flex items-center justify-between p-3 md:p-4 bg-white rounded-2xl border border-gray-100 hover:border-black transition-all group"
                         >
                             <span className="font-bold text-xs md:text-sm group-hover:text-black">Bulk Inventory Check</span>
                             <ShoppingCart size={16} className="group-hover:scale-110 transition-transform" />
                         </button>
                         <button
-                            onClick={() => window.location.href = '/reports'}
+                            onClick={() => router.push('/admin/reports')}
                             className="w-full flex items-center justify-between p-3 md:p-4 bg-white rounded-2xl border border-gray-100 hover:border-black transition-all group"
                         >
                             <span className="font-bold text-xs md:text-sm group-hover:text-black">Generate User Report</span>
@@ -143,7 +168,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h3 className="text-sm font-black tracking-widest text-gray-400 uppercase">RECENT TRANSACTIONS</h3>
-                    <button className="text-xs font-bold underline">VIEW ALL ORDERS</button>
+                    <Link href="/admin/orders" className="text-xs font-bold underline">VIEW ALL ORDERS</Link>
                 </div>
                 <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden">
                     <table className="w-full text-left">
@@ -158,16 +183,18 @@ export default function DashboardPage() {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {recentOrders.length > 0 ? (
-                                recentOrders.map((order, i) => (
-                                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                recentOrders.map((order) => (
+                                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-8 py-6 font-bold text-sm">#{order.id.slice(0, 8).toUpperCase()}</td>
-                                        <td className="px-8 py-6 text-sm">{order.customerName || "S. Pinjari"}</td>
-                                        <td className="px-8 py-6 text-sm text-gray-500">Jan {23 - i}, 2026</td>
-                                        <td className="px-8 py-6 font-bold text-sm">₹{order.total || "16,797"}</td>
+                                        <td className="px-8 py-6 text-sm">{order.customerName || "Anonymous"}</td>
+                                        <td className="px-8 py-6 text-sm text-gray-500">
+                                            {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : (order.date || "Just now")}
+                                        </td>
+                                        <td className="px-8 py-6 font-bold text-sm">₹{order.total?.toLocaleString() || "0"}</td>
                                         <td className="px-8 py-6">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${i === 0 ? "bg-black text-white" : "border border-gray-200 text-gray-400"
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${order.status?.toUpperCase() === 'PAID' ? "bg-black text-white" : "border border-gray-200 text-gray-400"
                                                 }`}>
-                                                {i === 0 ? "PAID" : "PENDING"}
+                                                {order.status?.toUpperCase() || "PENDING"}
                                             </span>
                                         </td>
                                     </tr>

@@ -13,12 +13,15 @@ interface Customer {
     createdAt: any;
     totalOrders?: number;
     role?: string;
+    isVerified?: boolean;
+    registryId?: string;
 }
 
 export default function UsersListPage() {
     const [users, setUsers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [usersError, setUsersError] = useState<string | null>(null);
 
     useEffect(() => {
         const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
@@ -29,6 +32,11 @@ export default function UsersListPage() {
             } as Customer));
             setUsers(usersData);
             setLoading(false);
+            setUsersError(null);
+        }, (error) => {
+            console.error("Firestore Users Sync Error:", error);
+            setUsersError("Failed to sync user records. Please check your connection or permissions.");
+            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -36,7 +44,8 @@ export default function UsersListPage() {
 
     const filteredUsers = users.filter(u =>
         u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.registryId?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -46,6 +55,19 @@ export default function UsersListPage() {
                 <h2 className="text-sm font-bold tracking-[0.2em] text-gray-400 mb-1 uppercase">Community</h2>
                 <h1 className="text-3xl font-bold tracking-tight">CUSTOMER DIRECTORY</h1>
             </div>
+
+            {/* Error State */}
+            {usersError && (
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex items-start space-x-4">
+                    <div className="p-2 bg-red-500 rounded-lg text-white">
+                        <User size={20} />
+                    </div>
+                    <div>
+                        <h4 className="text-red-900 font-bold text-sm">Synchronization Failure</h4>
+                        <p className="text-red-700 text-xs mt-1">{usersError}</p>
+                    </div>
+                </div>
+            )}
 
             {/* Search */}
             <div className="flex flex-col md:flex-row gap-4">
@@ -94,17 +116,20 @@ export default function UsersListPage() {
                                 </div>
                                 <div>
                                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-300 mb-1">Engagement</p>
-                                    <div className="flex items-center text-xs font-bold text-gray-500">
+                                    <div className={`flex items-center text-xs font-bold ${user.isVerified ? 'text-green-500' : 'text-gray-400'}`}>
                                         <ShieldCheck size={12} className="mr-1.5" />
-                                        Verified
+                                        {user.isVerified ? 'Verified' : 'Pending'}
                                     </div>
                                 </div>
                             </div>
 
-                            <button className="mt-8 w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] border border-gray-100 rounded-xl hover:bg-black hover:text-white hover:border-black transition-all flex items-center justify-center space-x-2">
+                            <Link
+                                href={`/admin/activity?user=${user.id}`}
+                                className="mt-8 w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] border border-gray-100 rounded-xl hover:bg-black hover:text-white hover:border-black transition-all flex items-center justify-center space-x-2"
+                            >
                                 <span>View Activity</span>
                                 <ExternalLink size={12} />
-                            </button>
+                            </Link>
                         </div>
                     ))
                 ) : (

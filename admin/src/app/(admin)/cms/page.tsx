@@ -51,7 +51,67 @@ export default function CMSPage() {
     ]);
 
     const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+    const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+    const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
     const [previewImage, setPreviewImage] = useState<string>("");
+
+    // Accessibility Refs
+    const bannerModalRef = React.useRef<HTMLDivElement>(null);
+    const lastFocusedElement = React.useRef<HTMLElement | null>(null);
+
+    // Escape and Focus Trap for Banner Modal
+    React.useEffect(() => {
+        if (editingBanner) {
+            lastFocusedElement.current = document.activeElement as HTMLElement;
+            bannerModalRef.current?.focus();
+
+            const handleKeyDown = (e: KeyboardEvent) => {
+                if (e.key === "Escape") {
+                    setEditingBanner(null);
+                    setPreviewImage("");
+                }
+
+                if (e.key === "Tab" && bannerModalRef.current) {
+                    const focusableElements = bannerModalRef.current.querySelectorAll(
+                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    );
+                    const firstElement = focusableElements[0] as HTMLElement;
+                    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+                    if (e.shiftKey) {
+                        if (document.activeElement === firstElement) {
+                            lastElement.focus();
+                            e.preventDefault();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement) {
+                            firstElement.focus();
+                            e.preventDefault();
+                        }
+                    }
+                }
+            };
+
+            window.addEventListener("keydown", handleKeyDown);
+            return () => {
+                window.removeEventListener("keydown", handleKeyDown);
+                lastFocusedElement.current?.focus();
+            };
+        }
+    }, [editingBanner]);
+
+    // Deletion Confirmation State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: "collection" | "promotion";
+        id: string;
+        name: string;
+    }>({ isOpen: false, type: "collection", id: "", name: "" });
+
+    // Clear preview when switching editing context
+    React.useEffect(() => {
+        setPreviewImage("");
+    }, [editingBanner?.id, editingCollection?.id]);
 
     // Collections State
     const [collections, setCollections] = useState<Collection[]>([
@@ -72,7 +132,6 @@ export default function CMSPage() {
             isActive: true
         }
     ]);
-    const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
 
     // Promotions State
     const [promotions, setPromotions] = useState<Promotion[]>([
@@ -91,7 +150,7 @@ export default function CMSPage() {
             isActive: false
         }
     ]);
-    const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
+
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -106,7 +165,11 @@ export default function CMSPage() {
 
     const handleSaveBanner = () => {
         if (editingBanner) {
-            setBanners(banners.map(b => b.id === editingBanner.id ? editingBanner : b));
+            const updated = {
+                ...editingBanner,
+                imageUrl: previewImage || editingBanner.imageUrl
+            };
+            setBanners(banners.map(b => b.id === updated.id ? updated : b));
             setEditingBanner(null);
             setPreviewImage("");
             alert("✅ Banner updated successfully!");
@@ -122,13 +185,18 @@ export default function CMSPage() {
     // Collection Handlers
     const handleSaveCollection = () => {
         if (editingCollection) {
-            if (collections.find(c => c.id === editingCollection.id)) {
-                setCollections(collections.map(c => c.id === editingCollection.id ? editingCollection : c));
+            const updated = {
+                ...editingCollection,
+                imageUrl: previewImage || editingCollection.imageUrl
+            };
+            if (collections.find(c => c.id === updated.id)) {
+                setCollections(collections.map(c => c.id === updated.id ? updated : c));
             } else {
-                setCollections([...collections, editingCollection]);
+                setCollections([...collections, updated]);
             }
             setEditingCollection(null);
             setPreviewImage("");
+            alert("✅ Collection saved successfully!");
         }
     };
 
@@ -139,7 +207,24 @@ export default function CMSPage() {
     };
 
     const deleteCollection = (id: string) => {
-        setCollections(collections.filter(c => c.id !== id));
+        const item = collections.find(c => c.id === id);
+        if (item) {
+            setConfirmModal({
+                isOpen: true,
+                type: "collection",
+                id: id,
+                name: item.title
+            });
+        }
+    };
+
+    const confirmDelete = () => {
+        if (confirmModal.type === "collection") {
+            setCollections(collections.filter(c => c.id !== confirmModal.id));
+        } else {
+            setPromotions(promotions.filter(p => p.id !== confirmModal.id));
+        }
+        setConfirmModal({ ...confirmModal, isOpen: false });
     };
 
     // Promotion Handlers
@@ -151,6 +236,7 @@ export default function CMSPage() {
                 setPromotions([...promotions, editingPromotion]);
             }
             setEditingPromotion(null);
+            alert("✅ Promotion saved successfully!");
         }
     };
 
@@ -161,7 +247,15 @@ export default function CMSPage() {
     };
 
     const deletePromotion = (id: string) => {
-        setPromotions(promotions.filter(p => p.id !== id));
+        const item = promotions.find(p => p.id === id);
+        if (item) {
+            setConfirmModal({
+                isOpen: true,
+                type: "promotion",
+                id: id,
+                name: item.code
+            });
+        }
     };
 
     return (
@@ -234,11 +328,20 @@ export default function CMSPage() {
 
                     {/* Edit Modal */}
                     {editingBanner && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div
+                            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="banner-edit-title"
+                        >
+                            <div
+                                ref={bannerModalRef}
+                                tabIndex={-1}
+                                className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto outline-none"
+                            >
                                 <div className="p-8 space-y-6">
                                     <div className="flex justify-between items-center">
-                                        <h2 className="text-2xl font-black">EDIT BANNER</h2>
+                                        <h2 id="banner-edit-title" className="text-2xl font-black">EDIT BANNER</h2>
                                         <button
                                             onClick={() => { setEditingBanner(null); setPreviewImage(""); }}
                                             className="p-2 hover:bg-gray-100 rounded-full transition-all"
@@ -602,6 +705,36 @@ export default function CMSPage() {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+            {/* Deletion Confirmation Modal */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl max-w-sm w-full p-8 space-y-6 shadow-2xl">
+                        <div className="text-center space-y-2">
+                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Trash2 className="text-red-500" size={32} />
+                            </div>
+                            <h2 className="text-xl font-black uppercase tracking-tight">Confirm Deletion</h2>
+                            <p className="text-sm text-gray-500">
+                                Are you sure you want to delete <span className="font-bold text-black">{confirmModal.name}</span>? This action cannot be undone.
+                            </p>
+                        </div>
+                        <div className="flex space-x-3">
+                            <button
+                                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                                className="flex-1 px-4 py-3 border border-gray-100 rounded-xl text-xs font-bold hover:border-black transition-all"
+                            >
+                                CANCEL
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 bg-red-500 text-white px-4 py-3 rounded-xl text-xs font-bold hover:bg-red-600 transition-all"
+                            >
+                                DELETE
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

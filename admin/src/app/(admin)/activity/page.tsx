@@ -15,6 +15,7 @@ import {
 
 export default function ActivityLogsPage() {
     const [filter, setFilter] = useState("all");
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Mock Activity Data (Since Firestore implementation for logs wasn't explicitly requested in previous parts)
     const logData = [
@@ -38,30 +39,52 @@ export default function ActivityLogsPage() {
         }
     };
 
-    const filteredLogs = filter === "all" ? logData : logData.filter(log => log.type === filter);
+    const handleSearch = (val: string) => {
+        setSearchTerm(val);
+        if (val !== "") setFilter("all");
+    };
+
+    const filteredLogs = logData.filter(log => {
+        const matchesFilter = filter === "all" || log.type === filter;
+        const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.action.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesFilter && matchesSearch;
+    });
 
     return (
         <div className="max-w-4xl mx-auto space-y-10 pb-20">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h2 className="text-sm font-bold tracking-[0.2em] text-gray-400 mb-1 uppercase">Audit Trail</h2>
-                    <h1 className="text-3xl font-bold tracking-tight">ACTIVITY LOGS</h1>
-                </div>
+            <div className="flex flex-col space-y-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <h2 className="text-sm font-bold tracking-[0.2em] text-gray-400 mb-1 uppercase">Audit Trail</h2>
+                        <h1 className="text-3xl font-bold tracking-tight">ACTIVITY LOGS</h1>
+                    </div>
 
-                <div className="flex bg-gray-50 p-1 rounded-xl">
-                    {["all", "auth", "update", "system"].map((option) => (
-                        <button
-                            key={option}
-                            onClick={() => setFilter(option)}
-                            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === option
+                    <div className="flex bg-gray-50 p-1 rounded-xl">
+                        {["all", "auth", "create", "delete", "update", "system"].map((option) => (
+                            <button
+                                key={option}
+                                onClick={() => setFilter(option)}
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === option
                                     ? "bg-white text-black shadow-sm"
                                     : "text-gray-400 hover:text-black"
-                                }`}
-                        >
-                            {option}
-                        </button>
-                    ))}
+                                    }`}
+                            >
+                                {option}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search logs by user or action..."
+                        value={searchTerm}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full bg-white border border-gray-100 rounded-2xl py-4 px-6 focus:border-black outline-none transition-all text-sm shadow-sm"
+                    />
                 </div>
             </div>
 

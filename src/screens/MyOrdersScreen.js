@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,218 +6,301 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-const ORDERS = [
-    {
-        id: 'VL-2026-001',
-        date: '23 Jan 2026',
-        total: '₹16,797',
-        status: 'Processing',
-        itemsCount: 2,
-        image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200'
-    },
-    {
-        id: 'VL-2025-452',
-        date: '15 Dec 2025',
-        total: '₹8,499',
-        status: 'Delivered',
-        itemsCount: 1,
-        image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=200'
-    }
-];
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 const MyOrdersScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const fetchOrders = async () => {
+        const user = auth.currentUser;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setError(null);
+            const ordersRef = collection(db, 'orders');
+            // Assuming 'userId' field exists in orders
+            const q = query(
+                ordersRef,
+                where('userId', '==', user.uid),
+                orderBy('createdAt', 'desc')
+            );
+
+            const querySnapshot = await getDocs(q);
+            const orderList = [];
+            querySnapshot.forEach((doc) => {
+                orderList.push({ id: doc.id, ...doc.data() });
+            });
+            setOrders(orderList);
+        } catch (err) {
+            console.error("Error fetching orders:", err);
+            setError(err.message || String(err));
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchOrders();
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Delivered': return '#2E7D32';
+            case 'Cancelled': return '#C62828';
+            case 'Processing': return '#EF6C00';
+            case 'Shipped': return '#1976D2';
+            default: return '#757575';
+        }
+    };
+
+    const getStatusBg = (status) => {
+        switch (status) {
+            case 'Delivered': return '#E8F5E9';
+            case 'Cancelled': return '#FFEBEE';
+            case 'Processing': return '#FFF3E0';
+            case 'Shipped': return '#E3F2FD';
+            default: return '#EEEEEE';
+        }
+    };
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialCommunityIcons name="arrow-left" size={26} color={theme.colors.black} />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={24} color="#000" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>MY ORDERS</Text>
-                <View style={{ width: 26 }} />
+                <Text style={styles.headerTitle}>My Orders</Text>
+                <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {ORDERS.length > 0 ? (
-                    ORDERS.map((order) => (
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
+                {loading ? (
+                    <ActivityIndicator size="large" color="#007BFF" style={{ marginTop: 50 }} />
+                ) : error ? (
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#FF3B30" />
+                        <Text style={[styles.emptyText, { color: '#FF3B30' }]}>Failed to load orders</Text>
+                        <Text style={styles.emptySub}>{error}</Text>
                         <TouchableOpacity
-                            key={order.id}
-                            style={styles.orderCard}
-                            onPress={() => navigation.navigate('OrderDetails')}
+                            style={[styles.shopBtn, { backgroundColor: '#000' }]}
+                            onPress={() => {
+                                setLoading(true);
+                                fetchOrders();
+                            }}
                         >
-                            <View style={styles.orderHeader}>
-                                <View>
-                                    <Text style={styles.orderId}>Order {order.id}</Text>
-                                    <Text style={styles.orderDate}>{order.date}</Text>
-                                </View>
-                                <View style={[
-                                    styles.statusBadge,
-                                    { backgroundColor: order.status === 'Delivered' ? '#E8F5E9' : '#FFF3E0' }
-                                ]}>
-                                    <Text style={[
-                                        styles.statusText,
-                                        { color: order.status === 'Delivered' ? '#2E7D32' : '#EF6C00' }
-                                    ]}>{order.status.toUpperCase()}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.orderBody}>
-                                <Image source={{ uri: order.image }} style={styles.orderImg} />
-                                <View style={styles.orderInfo}>
-                                    <Text style={styles.itemsLabel}>{order.itemsCount} Items</Text>
-                                    <View style={styles.priceRow}>
-                                        <Text style={styles.totalLabel}>Grand Total</Text>
-                                        <Text style={styles.totalValue}>{order.total}</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            <View style={styles.orderFooter}>
-                                <Text style={styles.viewDetails}>VIEW DETAILS</Text>
-                                <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.black} />
-                            </View>
+                            <Text style={styles.shopBtnText}>Try Again</Text>
                         </TouchableOpacity>
-                    ))
+                    </View>
+                ) : orders.length > 0 ? (
+                    orders.map((order) => {
+                        // Formatting logic
+                        const rawTotal = order.total || order.billing?.total || 0;
+                        const numericTotal = typeof rawTotal === 'number'
+                            ? rawTotal
+                            : parseFloat(String(rawTotal).replace(/[^\d.-]/g, '')) || 0;
+
+                        const formattedTotal = new Intl.NumberFormat('en-IN', {
+                            style: 'currency',
+                            currency: 'INR',
+                            maximumFractionDigits: 0
+                        }).format(numericTotal);
+
+                        const itemsCount = order.items?.length || 0;
+                        const date = order.createdAt?.toDate ? order.createdAt.toDate().toDateString() : order.date || 'Unknown Date';
+                        const firstImage = order.items?.[0]?.image || 'https://via.placeholder.com/100';
+
+                        return (
+                            <TouchableOpacity
+                                key={order.id}
+                                style={styles.orderCard}
+                                onPress={() => navigation.navigate('OrderDetails', { order })}
+                                activeOpacity={0.9}
+                            >
+                                <View style={styles.cardTop}>
+                                    <Image source={{ uri: firstImage }} style={styles.orderImage} />
+                                    <View style={styles.orderInfo}>
+                                        <View style={styles.infoRow}>
+                                            <Text style={styles.orderId}>#{order.id.slice(0, 8).toUpperCase()}</Text>
+                                            <Text style={styles.orderDate}>{date}</Text>
+                                        </View>
+                                        <Text style={styles.itemsText}>{itemsCount} {itemsCount === 1 ? 'Item' : 'Items'} • {formattedTotal}</Text>
+                                        <View style={[
+                                            styles.statusPill,
+                                            { backgroundColor: getStatusBg(order.status) }
+                                        ]}>
+                                            <View style={[
+                                                styles.statusDot,
+                                                { backgroundColor: getStatusColor(order.status) }
+                                            ]} />
+                                            <Text style={[
+                                                styles.statusText,
+                                                { color: getStatusColor(order.status) }
+                                            ]}>{order.status}</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })
                 ) : (
                     <View style={styles.emptyContainer}>
-                        <MaterialCommunityIcons name="package-variant" size={80} color={theme.colors.gray} />
-                        <Text style={styles.emptyText}>NO ORDERS YET</Text>
-                        <Text style={styles.emptySub}>You haven't placed any orders with us yet.</Text>
+                        <MaterialCommunityIcons name="shopping-outline" size={64} color="#C7C7CC" />
+                        <Text style={styles.emptyText}>No orders yet</Text>
+                        <Text style={styles.emptySub}>Start shopping to see your orders here.</Text>
+                        <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Home')}>
+                            <Text style={styles.shopBtnText}>Start Shopping</Text>
+                        </TouchableOpacity>
                     </View>
                 )}
             </ScrollView>
-
-        </View >
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#F2F2F7',
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#FFF',
+    },
+    backBtn: {
+        width: 40,
+        justifyContent: 'center',
     },
     headerTitle: {
-        ...theme.typography.header,
-        fontSize: 16,
-        letterSpacing: 2,
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#000',
     },
     scrollContent: {
-        padding: 20,
+        padding: 16,
+        paddingBottom: 50
     },
     orderCard: {
-        padding: 20,
-        borderRadius: 16,
-        backgroundColor: theme.colors.white,
-        borderWidth: 1,
-        borderColor: theme.colors.gray,
-        marginBottom: 20,
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    orderHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingBottom: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
-        marginBottom: 15,
-    },
-    orderId: {
-        ...theme.typography.body,
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    orderDate: {
-        ...theme.typography.body,
-        fontSize: 12,
-        color: theme.colors.darkGray,
-        marginTop: 2,
-    },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    statusText: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        fontWeight: '900',
-    },
-    orderBody: {
+    cardTop: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    orderImg: {
-        width: 60,
-        height: 60,
+    orderImage: {
+        width: 64,
+        height: 64,
         borderRadius: 8,
-        backgroundColor: theme.colors.gray,
+        backgroundColor: '#F2F2F7',
     },
     orderInfo: {
         flex: 1,
-        marginLeft: 15,
+        marginLeft: 16,
+        marginRight: 8,
     },
-    itemsLabel: {
-        ...theme.typography.body,
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    orderId: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#000',
+    },
+    orderDate: {
+        fontSize: 12,
+        color: '#8E8E93',
+    },
+    itemsText: {
         fontSize: 13,
-        color: theme.colors.darkGray,
+        color: '#3C3C43',
+        marginBottom: 8,
     },
-    priceRow: {
+    statusPill: {
+        alignSelf: 'flex-start',
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 100,
     },
-    totalLabel: {
-        ...theme.typography.body,
-        fontSize: 12,
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        marginRight: 6,
     },
-    totalValue: {
-        ...theme.typography.body,
-        fontSize: 15,
-        fontWeight: 'bold',
-    },
-    orderFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 15,
-        paddingTop: 15,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.gray,
-    },
-    viewDetails: {
-        ...theme.typography.subHeader,
-        fontSize: 12,
-        letterSpacing: 1,
+    statusText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
     emptyContainer: {
         alignItems: 'center',
+        justifyContent: 'center',
         marginTop: 100,
     },
     emptyText: {
-        ...theme.typography.header,
         fontSize: 18,
-        marginTop: 20,
+        fontWeight: '600',
+        color: '#000',
+        marginTop: 16,
     },
     emptySub: {
-        ...theme.typography.body,
-        color: theme.colors.darkGray,
+        fontSize: 14,
+        color: '#8E8E93',
         marginTop: 8,
-    }
+        marginBottom: 20
+    },
+    shopBtn: {
+        paddingHorizontal: 25,
+        paddingVertical: 12,
+        backgroundColor: '#007BFF',
+        borderRadius: 25,
+    },
+    shopBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
 });
 
 export default MyOrdersScreen;

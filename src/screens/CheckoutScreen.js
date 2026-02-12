@@ -6,14 +6,15 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
-    SafeAreaView
+    TextInput,
+    Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import GlassCard from '../components/GlassCard';
-import { TextInput } from 'react-native';
 import { useCart } from '../context/CartContext';
+import { useRewards } from '../context/RewardsContext';
 import VeloraButton from '../components/VeloraButton';
 
 const ADDRESSES = [
@@ -35,15 +36,10 @@ const ADDRESSES = [
     }
 ];
 
-const PAYMENT_METHODS = [
-    { id: 'upi', name: 'UPI / GPay / PhonePe', icon: 'lightning-bolt' },
-    { id: 'card', name: 'Credit / Debit Card', icon: 'credit-card-outline' },
-    { id: 'cod', name: 'Cash on Delivery', icon: 'cash' },
-];
-
 const CheckoutScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const { cartItems } = useCart();
+    const { calculateDiscount, REWARD_CARDS, selectedCard, addSpending } = useRewards();
 
     const [selectedAddress, setSelectedAddress] = useState('1');
     const [selectedPayment, setSelectedPayment] = useState('upi');
@@ -57,174 +53,256 @@ const CheckoutScreen = ({ navigation }) => {
 
     const subtotal = cartItems.reduce((sum, item) => sum + (item.priceNum * item.quantity), 0);
     const shipping = 499;
-    const total = subtotal + shipping;
+
+    // Calculate reward card discount
+    const { discount, discountPercent } = calculateDiscount(subtotal);
+    const total = subtotal + shipping - discount;
+
+    const handlePlaceOrder = async () => {
+        // Validation
+        if (!cartItems || cartItems.length === 0) {
+            Alert.alert('Error', 'Your bag is empty');
+            return;
+        }
+
+        if (!selectedAddress) {
+            Alert.alert('Error', 'Please select a shipping address');
+            return;
+        }
+
+        if (selectedPayment === 'upi') {
+            const upiRegex = /^[A-Za-z0-9]+([._-][A-Za-z0-9]+)*@[A-Za-z0-9]+([.-][A-Za-z0-9]+)*$/;
+            if (!upiRegex.test(upiId)) {
+                Alert.alert('Error', 'Please enter a valid UPI ID');
+                return;
+            }
+        } else if (selectedPayment === 'card') {
+            // Card Name Validation
+            if (!cardName.trim()) {
+                Alert.alert('Error', 'Please enter the name on card');
+                return;
+            }
+
+            // Card Number Validation (16 digits or 15 for Amex)
+            const cleanCardNumber = cardNumber.replace(/\s?/g, '');
+            const isAmex = cleanCardNumber.startsWith('34') || cleanCardNumber.startsWith('37');
+            const expectedLength = isAmex ? 15 : 16;
+
+            if (!/^\d+$/.test(cleanCardNumber) || cleanCardNumber.length !== expectedLength) {
+                Alert.alert('Error', `Please enter a valid ${expectedLength}-digit card number${isAmex ? ' (Amex)' : ''}`);
+                return;
+            }
+
+            // Expiry Validation (MM/YY)
+            const expiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+            if (!expiryRegex.test(expiry)) {
+                Alert.alert('Error', 'Please enter a valid expiry date (MM/YY)');
+                return;
+            }
+
+            const [expMonth, expYear] = expiry.split('/').map(n => parseInt(n, 10));
+            const now = new Date();
+            const currentYear = parseInt(now.getFullYear().toString().slice(-2), 10);
+            const currentMonth = now.getMonth() + 1;
+
+            if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+                Alert.alert('Error', 'Card has expired');
+                return;
+            }
+
+            // CVV Validation (3 digits or 4 for Amex)
+            const expectedCvvLength = isAmex ? 4 : 3;
+            if (!/^\d+$/.test(cvv) || cvv.length !== expectedCvvLength) {
+                Alert.alert('Error', `Please enter a valid ${expectedCvvLength}-digit CVV`);
+                return;
+            }
+        }
+
+        try {
+            // Add spending to rewards
+            await addSpending(total);
+            navigation.navigate('OrderSuccess');
+        } catch (error) {
+            Alert.alert('Payment Failed', error.message || 'Something went wrong while processing your order.');
+        }
+    };
+
+    const renderHeader = () => (
+        <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Checkout</Text>
+            <View style={{ width: 40 }} />
+        </View>
+    );
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialCommunityIcons name="arrow-left" size={26} color={theme.colors.black} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>CHECKOUT</Text>
-                <View style={{ width: 26 }} />
-            </View>
+            {renderHeader()}
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {/* Delivery Section */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>DELIVERY ADDRESS</Text>
-                        <TouchableOpacity><Text style={styles.addText}>ADD NEW</Text></TouchableOpacity>
-                    </View>
-                    {ADDRESSES.map((addr) => (
+
+                {/* Shipping Address Section */}
+                <Text style={styles.sectionHeader}>SHIPPING ADDRESS</Text>
+                <View style={styles.groupContainer}>
+                    {ADDRESSES.map((addr, index) => (
                         <TouchableOpacity
                             key={addr.id}
-                            style={[styles.addressItem, selectedAddress === addr.id && styles.activeItem]}
+                            style={[
+                                styles.rowItem,
+                                index !== ADDRESSES.length - 1 && styles.separator
+                            ]}
                             onPress={() => setSelectedAddress(addr.id)}
                         >
-                            <View style={styles.addrLabelRow}>
-                                <Text style={styles.addrType}>{addr.type.toUpperCase()}</Text>
-                                <MaterialCommunityIcons
-                                    name={selectedAddress === addr.id ? "radiobox-marked" : "radiobox-blank"}
-                                    size={20}
-                                    color={selectedAddress === addr.id ? theme.colors.black : theme.colors.lightGray}
-                                />
+                            <View style={{ flex: 1 }}>
+                                <View style={styles.addrHeader}>
+                                    <Text style={styles.addrName}>{addr.name}</Text>
+                                    <View style={styles.tag}>
+                                        <Text style={styles.tagText}>{addr.type}</Text>
+                                    </View>
+                                </View>
+                                <Text style={styles.addrText}>{addr.address}</Text>
+                                <Text style={styles.addrText}>{addr.phone}</Text>
                             </View>
-                            <Text style={styles.addrName}>{addr.name}</Text>
-                            <Text style={styles.addrDetail}>{addr.address}</Text>
-                            <Text style={styles.addrPhone}>Phone: {addr.phone}</Text>
+                            {selectedAddress === addr.id && (
+                                <Ionicons name="checkmark-circle" size={22} color="#007BFF" />
+                            )}
                         </TouchableOpacity>
                     ))}
+                    <TouchableOpacity
+                        style={[styles.rowItem, styles.separator, { justifyContent: 'center' }]}
+                        onPress={() => navigation.navigate('AddressBook')}
+                    >
+                        <Text style={styles.actionText}>Add New Address</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Payment Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>PAYMENT METHOD</Text>
-                    {PAYMENT_METHODS.map((method) => {
-                        const isSelected = selectedPayment === method.id;
-                        return (
-                            <View key={method.id} style={[styles.paymentContainer, isSelected && styles.activePaymentContainer]}>
-                                <TouchableOpacity
-                                    style={styles.paymentHeader}
-                                    onPress={() => setSelectedPayment(method.id)}
-                                >
-                                    <View style={styles.paymentIconLabel}>
-                                        <View style={[styles.iconCircle, isSelected && styles.activeIconCircle]}>
-                                            <MaterialCommunityIcons
-                                                name={method.icon}
-                                                size={20}
-                                                color={isSelected ? theme.colors.white : theme.colors.black}
-                                            />
-                                        </View>
-                                        <Text style={styles.paymentName}>{method.name}</Text>
-                                    </View>
-                                    <MaterialCommunityIcons
-                                        name={isSelected ? "radiobox-marked" : "radiobox-blank"}
-                                        size={22}
-                                        color={isSelected ? theme.colors.black : theme.colors.lightGray}
-                                    />
-                                </TouchableOpacity>
+                <Text style={styles.sectionHeader}>PAYMENT METHOD</Text>
+                <View style={styles.groupContainer}>
+                    <TouchableOpacity
+                        style={[styles.rowItem, styles.separator]}
+                        onPress={() => setSelectedPayment('upi')}
+                    >
+                        <View style={styles.paymentRow}>
+                            <MaterialCommunityIcons name="lightning-bolt" size={22} color="#FD7E14" />
+                            <Text style={styles.paymentText}>UPI / Apps</Text>
+                        </View>
+                        {selectedPayment === 'upi' ? <Ionicons name="checkmark-circle" size={22} color="#007BFF" /> : <View style={styles.radioCircle} />}
+                    </TouchableOpacity>
 
-                                {/* Expanded Details */}
-                                {isSelected && method.id === 'upi' && (
-                                    <View style={styles.paymentDetails}>
-                                        <Text style={styles.inputLabel}>ENTER UPI ID</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="e.g. name@upi"
-                                            value={upiId}
-                                            onChangeText={setUpiId}
-                                            autoCapitalize="none"
-                                        />
-                                        <Text style={styles.helperText}>Securely pay via your preferred UPI app.</Text>
-                                    </View>
-                                )}
+                    {selectedPayment === 'upi' && (
+                        <View style={styles.expandedInput}>
+                            <TextInput
+                                style={styles.inputField}
+                                placeholder="Enter UPI ID (e.g. name@okhdfc)"
+                                value={upiId}
+                                onChangeText={setUpiId}
+                            />
+                        </View>
+                    )}
 
-                                {isSelected && method.id === 'card' && (
-                                    <View style={styles.paymentDetails}>
-                                        <Text style={styles.inputLabel}>CARD NUMBER</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="0000 0000 0000 0000"
-                                            keyboardType="numeric"
-                                            value={cardNumber}
-                                            onChangeText={setCardNumber}
-                                            maxLength={19}
-                                        />
-                                        <View style={styles.rowInputs}>
-                                            <View style={{ flex: 1, marginRight: 10 }}>
-                                                <Text style={styles.inputLabel}>EXPIRY</Text>
-                                                <TextInput
-                                                    style={styles.input}
-                                                    placeholder="MM/YY"
-                                                    value={expiry}
-                                                    onChangeText={setExpiry}
-                                                    maxLength={5}
-                                                />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.inputLabel}>CVV</Text>
-                                                <TextInput
-                                                    style={styles.input}
-                                                    placeholder="123"
-                                                    keyboardType="numeric"
-                                                    secureTextEntry
-                                                    value={cvv}
-                                                    onChangeText={setCvv}
-                                                    maxLength={4}
-                                                />
-                                            </View>
-                                        </View>
-                                        <Text style={styles.inputLabel}>NAME ON CARD</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Name as on card"
-                                            value={cardName}
-                                            onChangeText={setCardName}
-                                        />
-                                    </View>
-                                )}
+                    <TouchableOpacity
+                        style={[styles.rowItem, styles.separator]}
+                        onPress={() => setSelectedPayment('card')}
+                    >
+                        <View style={styles.paymentRow}>
+                            <MaterialCommunityIcons name="credit-card" size={22} color="#007BFF" />
+                            <Text style={styles.paymentText}>Credit / Debit Card</Text>
+                        </View>
+                        {selectedPayment === 'card' ? <Ionicons name="checkmark-circle" size={22} color="#007BFF" /> : <View style={styles.radioCircle} />}
+                    </TouchableOpacity>
 
-                                {isSelected && method.id === 'cod' && (
-                                    <View style={styles.paymentDetails}>
-                                        <Text style={styles.codText}>Pay digitally or with cash upon delivery.</Text>
-                                    </View>
-                                )}
+                    {selectedPayment === 'card' && (
+                        <View style={styles.expandedInput}>
+                            <TextInput
+                                style={[styles.inputField, { marginBottom: 10 }]}
+                                placeholder="Name on Card"
+                                value={cardName}
+                                onChangeText={setCardName}
+                                autoCapitalize="words"
+                            />
+                            <TextInput
+                                style={styles.inputField}
+                                placeholder="Card Number"
+                                value={cardNumber}
+                                onChangeText={setCardNumber}
+                                keyboardType="numeric"
+                            />
+                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                <TextInput
+                                    style={[styles.inputField, { flex: 1 }]}
+                                    placeholder="MM/YY"
+                                    value={expiry}
+                                    onChangeText={setExpiry}
+                                />
+                                <TextInput
+                                    style={[styles.inputField, { flex: 1 }]}
+                                    placeholder="CVV"
+                                    value={cvv}
+                                    onChangeText={setCvv}
+                                    keyboardType="numeric"
+                                    secureTextEntry
+                                />
                             </View>
-                        );
-                    })}
+                        </View>
+                    )}
+
+                    <TouchableOpacity
+                        style={styles.rowItem}
+                        onPress={() => setSelectedPayment('cod')}
+                    >
+                        <View style={styles.paymentRow}>
+                            <MaterialCommunityIcons name="cash" size={22} color="#28A745" />
+                            <Text style={styles.paymentText}>Cash on Delivery</Text>
+                        </View>
+                        {selectedPayment === 'cod' ? <Ionicons name="checkmark-circle" size={22} color="#007BFF" /> : <View style={styles.radioCircle} />}
+                    </TouchableOpacity>
                 </View>
 
-                {/* Order Review Snippet */}
-                <View style={[styles.section, styles.lastSection]}>
-                    <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
-                    <View style={styles.summaryBox}>
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryText}>Amount ({cartItems.length} items)</Text>
-                            <Text style={styles.summaryAmount}>₹{subtotal.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryText}>Shipping Charges</Text>
-                            <Text style={styles.summaryAmount}>₹{shipping.toLocaleString()}</Text>
-                        </View>
-                        <View style={[styles.summaryRow, styles.totalRow]}>
-                            <Text style={styles.totalText}>Total Payable</Text>
-                            <Text style={styles.totalAmount}>₹{total.toLocaleString()}</Text>
+                {/* Reward Applied */}
+                {selectedCard && REWARD_CARDS[selectedCard] && (
+                    <View style={styles.rewardBanner}>
+                        <MaterialCommunityIcons name="star-circle" size={24} color="#FFF" />
+                        <View style={{ marginLeft: 10 }}>
+                            <Text style={styles.rewardTitle}>{REWARD_CARDS[selectedCard].title} Applied</Text>
+                            <Text style={styles.rewardSubtitle}>You saved ₹{discount.toLocaleString()} with {discountPercent}% off</Text>
                         </View>
                     </View>
+                )}
+
+                {/* Summary */}
+                <Text style={styles.sectionHeader}>ORDER SUMMARY</Text>
+                <View style={styles.groupContainer}>
+                    <View style={[styles.rowItem, styles.separator]}>
+                        <Text style={styles.summaryLabel}>Subtotal</Text>
+                        <Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
+                    </View>
+                    <View style={[styles.rowItem, styles.separator]}>
+                        <Text style={styles.summaryLabel}>Shipping</Text>
+                        <Text style={styles.summaryValue}>₹{shipping.toLocaleString()}</Text>
+                    </View>
+                    {discount > 0 && (
+                        <View style={[styles.rowItem, styles.separator]}>
+                            <Text style={[styles.summaryLabel, { color: '#28A745' }]}>Discount</Text>
+                            <Text style={[styles.summaryValue, { color: '#28A745' }]}>-₹{discount.toLocaleString()}</Text>
+                        </View>
+                    )}
+                    <View style={styles.rowItem}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
+                    </View>
                 </View>
+
             </ScrollView>
 
-            {/* Bottom Action */}
-            <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <GlassCard style={styles.checkoutCard}>
-                    <VeloraButton
-                        title="PLACE ORDER"
-                        onPress={() => navigation.navigate('OrderSuccess')}
-                        style={styles.payBtn}
-                    />
-                </GlassCard>
+            {/* Sticky Footer */}
+            <View style={[styles.footer, { paddingBottom: insets.bottom + 10 }]}>
+                <VeloraButton
+                    title={`PAY ₹${total.toLocaleString()}`}
+                    onPress={handlePlaceOrder}
+                />
             </View>
         </View>
     );
@@ -233,214 +311,167 @@ const CheckoutScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#F2F2F7', // iOS grouped background
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#FFF',
+    },
+    backBtn: {
+        width: 40,
+        justifyContent: 'center',
     },
     headerTitle: {
-        ...theme.typography.header,
-        fontSize: 16,
-        letterSpacing: 2,
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#000',
     },
     scrollContent: {
-        padding: 20,
-        paddingBottom: 150,
-    },
-    section: {
-        marginBottom: 35,
+        paddingTop: 20,
+        paddingBottom: 120, // space for footer
     },
     sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    sectionTitle: {
-        ...theme.typography.subHeader,
-        fontSize: 12,
-        letterSpacing: 1.5,
-        color: theme.colors.darkGray,
-        marginBottom: 15,
-    },
-    addText: {
-        ...theme.typography.body,
-        fontSize: 12,
-        fontWeight: 'bold',
-        textDecorationLine: 'underline',
-    },
-    addressItem: {
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.gray,
-        marginBottom: 12,
-    },
-    activeItem: {
-        borderColor: theme.colors.black,
-        backgroundColor: 'rgba(0,0,0,0.02)',
-    },
-    addrLabelRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    addrType: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        backgroundColor: theme.colors.gray,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    addrName: {
-        ...theme.typography.body,
-        fontSize: 14,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    addrDetail: {
-        ...theme.typography.body,
         fontSize: 13,
-        color: theme.colors.darkGray,
-        lineHeight: 18,
+        color: '#6D6D72',
+        fontWeight: '500',
+        marginLeft: 16,
+        marginBottom: 8,
+        textTransform: 'uppercase',
     },
-    addrPhone: {
-        ...theme.typography.body,
-        fontSize: 12,
-        marginTop: 4,
-    },
-    paymentName: {
-        ...theme.typography.body,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    paymentIconLabel: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    iconCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: theme.colors.gray,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    paymentContainer: {
-        backgroundColor: theme.colors.white,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.gray,
-        marginBottom: 12,
+    groupContainer: {
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        marginHorizontal: 16,
+        marginBottom: 24,
         overflow: 'hidden',
     },
-    activePaymentContainer: {
-        borderColor: theme.colors.black,
-        backgroundColor: 'rgba(0,0,0,0.02)',
-    },
-    paymentHeader: {
+    rowItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        justifyContent: 'space-between',
         padding: 16,
+        backgroundColor: '#FFF',
     },
-    paymentDetails: {
-        paddingHorizontal: 16,
-        paddingBottom: 20,
-        paddingTop: 0,
+    separator: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#C6C6C8',
     },
-    activeIconCircle: {
-        backgroundColor: theme.colors.black,
+    addrHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
     },
-    inputLabel: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        color: theme.colors.darkGray,
-        marginBottom: 6,
-        marginTop: 10,
-    },
-    input: {
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
-        paddingVertical: 8,
+    addrName: {
         fontSize: 16,
-        fontFamily: theme.typography.body.fontFamily,
-        color: theme.colors.black,
+        fontWeight: '600',
+        color: '#000',
+        marginRight: 8,
     },
-    rowInputs: {
+    tag: {
+        backgroundColor: '#E5E5EA',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    tagText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#000',
+    },
+    addrText: {
+        fontSize: 14,
+        color: '#3C3C43',
+        marginTop: 2,
+    },
+    actionText: {
+        fontSize: 16,
+        color: '#007BFF',
+    },
+    paymentRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    helperText: {
-        ...theme.typography.body,
-        fontSize: 11,
-        color: theme.colors.darkGray,
-        marginTop: 8,
+    paymentText: {
+        fontSize: 16,
+        marginLeft: 12,
+        color: '#000',
     },
-    codText: {
-        ...theme.typography.body,
-        fontSize: 13,
-        color: theme.colors.darkGray,
+    radioCircle: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 1.5,
+        borderColor: '#C6C6C8',
     },
-    summaryBox: {
-        padding: 16,
-        backgroundColor: theme.colors.gray,
+    expandedInput: {
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        backgroundColor: '#FFF',
+    },
+    inputField: {
+        backgroundColor: '#F2F2F7',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        fontSize: 16,
+        color: '#000',
+    },
+    summaryLabel: {
+        fontSize: 16,
+        color: '#3C3C43',
+    },
+    summaryValue: {
+        fontSize: 16,
+        color: '#000',
+    },
+    totalLabel: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#000',
+    },
+    totalValue: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#000',
+    },
+    rewardBanner: {
+        marginHorizontal: 16,
+        marginBottom: 24,
+        backgroundColor: '#000',
         borderRadius: 12,
-    },
-    summaryRow: {
+        padding: 16,
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 10,
+        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    summaryText: {
-        ...theme.typography.body,
-        fontSize: 13,
-        color: theme.colors.darkGray,
-    },
-    summaryAmount: {
-        ...theme.typography.body,
-        fontSize: 13,
-    },
-    totalRow: {
-        marginTop: 10,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.lightGray,
-        marginBottom: 0,
-    },
-    totalText: {
-        ...theme.typography.body,
-        fontSize: 15,
+    rewardTitle: {
+        color: '#FFF',
+        fontSize: 16,
         fontWeight: 'bold',
     },
-    totalAmount: {
-        ...theme.typography.body,
-        fontSize: 16,
-        fontWeight: '900',
+    rewardSubtitle: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 13,
     },
-    bottomContainer: {
+    footer: {
         position: 'absolute',
         bottom: 0,
-        width: '100%',
-        paddingHorizontal: 20,
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFF',
+        paddingTop: 16,
+        paddingHorizontal: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#C6C6C8',
     },
-    checkoutCard: {
-        padding: 24,
-        borderRadius: 30,
-        backgroundColor: 'rgba(255,255,255,0.98)',
-    },
-    payBtn: {
-        height: 56,
-    }
 });
 
 export default CheckoutScreen;

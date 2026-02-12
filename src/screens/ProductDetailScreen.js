@@ -1,20 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import GlassCard from '../components/GlassCard';
-import VeloraButton from '../components/VeloraButton';
+import { Ionicons } from '@expo/vector-icons';
 import SwipeButton from '../components/SwipeButton';
+import VeloraImage from '../components/VeloraImage';
 import DynamicIslandAlert from '../components/DynamicIslandAlert';
 import { useCart } from '../context/CartContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
 const ProductDetailScreen = ({ navigation, route }) => {
+    const insets = useSafeAreaInsets();
     const { product } = route.params || {};
-    console.log('ProductDetailScreen received product:', JSON.stringify(product, null, 2));
 
-    // Default fallback data if no product is passed
     const activeProduct = product || {
         name: 'VELOCITY 1.0 SNEAKERS',
         price: '₹12,999',
@@ -25,50 +24,74 @@ const ProductDetailScreen = ({ navigation, route }) => {
 
     const [selectedSize, setSelectedSize] = useState('9');
     const [alertVisible, setAlertVisible] = useState(false);
+    const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isFavorite, setIsFavorite] = useState(activeProduct.isFavorite || false);
     const { addToCart } = useCart();
 
+    useEffect(() => {
+        let timeout;
+        if (isAddingToCart) {
+            timeout = setTimeout(() => {
+                addToCart(activeProduct, selectedSize);
+                setAlertVisible(true);
+                setIsAddingToCart(false);
+            }, 1000);
+        }
+        return () => clearTimeout(timeout);
+    }, [isAddingToCart, addToCart, activeProduct, selectedSize]);
+
     const handleAddToCart = () => {
-        addToCart(activeProduct, selectedSize);
-        setAlertVisible(true);
-        // Navigate or update context after a short delay if needed
-        setTimeout(() => {
-            // navigation.navigate('Cart'); // Optional: don't auto-nav if we want user to see the island
-        }, 1500);
+        setIsAddingToCart(true);
     };
 
     return (
         <View style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Hero Image Section */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+                {/* Hero Image */}
                 <View style={styles.imageContainer}>
-                    <Image
+                    <VeloraImage
                         source={{ uri: activeProduct.image }}
                         style={styles.heroImage}
                     />
-                    <SafeAreaView style={styles.header}>
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.black} />
+                    {/* Floating Header Actions */}
+                    <View style={[styles.headerActions, { top: insets.top + 10 }]}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+                            <Ionicons name="arrow-back" size={24} color="#000" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.backButton}>
-                            <MaterialCommunityIcons name="heart-outline" size={24} color={theme.colors.black} />
+                        <TouchableOpacity
+                            style={styles.iconBtn}
+                            onPress={() => setIsFavorite(!isFavorite)}
+                        >
+                            <Ionicons
+                                name={isFavorite ? "heart" : "heart-outline"}
+                                size={24}
+                                color={isFavorite ? "#FF3B30" : "#000"}
+                            />
                         </TouchableOpacity>
-                    </SafeAreaView>
+                    </View>
                 </View>
 
-                {/* Product Info */}
-                <View style={styles.infoContainer}>
-                    <Text style={styles.tag}>{activeProduct.tag || 'NEW ARRIVAL'}</Text>
-                    <Text style={styles.title}>{activeProduct.name.toUpperCase()}</Text>
-                    <Text style={styles.price}>{activeProduct.price}</Text>
+                {/* Content Sheet */}
+                <View style={styles.contentSheet}>
+                    <View style={styles.indicator} />
+
+                    <View style={styles.titleRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.tag}>{activeProduct.tag || 'NEW ARRIVAL'}</Text>
+                            <Text style={styles.title}>{activeProduct.name}</Text>
+                        </View>
+                        <Text style={styles.price}>{activeProduct.price}</Text>
+                    </View>
 
                     <Text style={styles.description}>
-                        {activeProduct.description || 'Experience the perfect blend of style and comfort with this premium piece from the Velora collection. Crafted with attention to detail for the modern trendsetter.'}
+                        {activeProduct.description || 'Experience the perfect blend of style and comfort with this premium piece from the Velora collection.'}
                     </Text>
 
-                    {/* Size Selector Shell */}
-                    <Text style={styles.sectionLabel}>SELECT SIZE (UK)</Text>
+                    {/* Size Selector */}
+                    <Text style={styles.sectionTitle}>SELECT SIZE (UK)</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sizeScroll}>
-                        {['7', '8', '9', '10', '11'].map((size) => (
+                        {['7', '8', '9', '10', '11', '12'].map((size) => (
                             <TouchableOpacity
                                 key={size}
                                 style={[styles.sizeBox, selectedSize === size && styles.activeSizeBox]}
@@ -79,61 +102,53 @@ const ProductDetailScreen = ({ navigation, route }) => {
                         ))}
                     </ScrollView>
 
-                    {/* Rating & Reviews Section */}
-                    <View style={styles.ratingSection}>
-                        <Text style={styles.sectionLabel}>RATINGS & REVIEWS</Text>
-                        <View style={styles.ratingHeader}>
-                            <View>
-                                <Text style={styles.ratingScore}>4.8</Text>
-                                <View style={styles.starsRow}>
-                                    {[1, 2, 3, 4, 5].map(i => (
-                                        <MaterialCommunityIcons key={i} name="star" size={16} color={theme.colors.black} />
-                                    ))}
-                                </View>
-                                <Text style={styles.ratingCount}>Based on 128 reviews</Text>
+                    {/* Reviews Preview */}
+                    <View style={styles.reviewSection}>
+                        <View style={styles.reviewHeader}>
+                            <Text style={styles.sectionTitle}>REVIEWS (128)</Text>
+                            <View style={styles.ratingBadge}>
+                                <Ionicons name="star" size={12} color="#FFF" />
+                                <Text style={styles.ratingText}>4.8</Text>
                             </View>
-                            <TouchableOpacity style={styles.writeReviewBtn}>
-                                <Text style={styles.writeReviewText}>WRITE A REVIEW</Text>
-                            </TouchableOpacity>
                         </View>
 
                         {/* Sample Review */}
                         <View style={styles.reviewCard}>
-                            <View style={styles.reviewHeader}>
-                                <Text style={styles.reviewerName}>Alex M.</Text>
-                                <Text style={styles.reviewDate}>2 days ago</Text>
-                            </View>
-                            <View style={styles.starsRow}>
-                                {[1, 2, 3, 4, 5].map(i => (
-                                    <MaterialCommunityIcons key={i} name="star" size={12} color={theme.colors.black} />
-                                ))}
+                            <View style={styles.reviewUser}>
+                                <View style={styles.avatarPlaceholder}>
+                                    <Text style={styles.avatarText}>A</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.reviewerName}>Alex M.</Text>
+                                    <View style={{ flexDirection: 'row' }}>
+                                        {[1, 2, 3, 4, 5].map(i => <Ionicons key={i} name="star" size={10} color="#FFD700" />)}
+                                    </View>
+                                </View>
+                                <Text style={styles.reviewDate}>2d ago</Text>
                             </View>
                             <Text style={styles.reviewText}>
-                                Absolutely love the design! Fits perfectly and very comfortable for long walks.
+                                The design is absolutely stunning. Fits perfectly and very comfortable for daily wear.
                             </Text>
                         </View>
                     </View>
-                </View>
 
-                <View style={{ height: 120 }} />
+                    <View style={{ height: 100 }} />
+                </View>
             </ScrollView>
 
-            {/* Floating Bottom Action Bar */}
-            <View style={styles.bottomBarContainer}>
-                <GlassCard style={styles.bottomBar}>
-                    <View style={styles.actionRow}>
-                        <View>
-                            <Text style={styles.totalPrice}>TOTAL</Text>
-                            <Text style={styles.priceValue}>{activeProduct.price}</Text>
-                        </View>
-                        <View style={{ width: width * 0.5 }}>
-                            <SwipeButton
-                                title="SWIPE TO BAG"
-                                onSwipeSuccess={handleAddToCart}
-                            />
-                        </View>
-                    </View>
-                </GlassCard>
+            {/* Sticky Bottom Bar */}
+            <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
+                <View style={styles.totalContainer}>
+                    <Text style={styles.totalLabel}>TOTAL</Text>
+                    <Text style={styles.totalPrice}>{activeProduct.price}</Text>
+                </View>
+                <View style={styles.swipeContainer}>
+                    <SwipeButton
+                        title="SWIPE TO BAG"
+                        onSwipeSuccess={handleAddToCart}
+                        isLoading={isAddingToCart}
+                    />
+                </View>
             </View>
 
             <DynamicIslandAlert
@@ -149,173 +164,219 @@ const ProductDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#FFF',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 100,
     },
     imageContainer: {
         width: width,
-        height: height * 0.6,
+        height: height * 0.55,
+        position: 'relative',
     },
     heroImage: {
         width: '100%',
         height: '100%',
         resizeMode: 'cover',
     },
-    header: {
+    headerActions: {
         position: 'absolute',
-        top: 0,
         width: '100%',
         flexDirection: 'row',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
-        paddingTop: 40,
+        zIndex: 10,
     },
-    backButton: {
+    iconBtn: {
         width: 44,
         height: 44,
-        backgroundColor: 'rgba(255,255,255,0.8)',
         borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
     },
-    infoContainer: {
-        padding: 24,
+    contentSheet: {
+        flex: 1,
+        marginTop: -40,
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
     },
-    tag: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        color: '#FF3B30',
-        marginBottom: 8,
-        fontWeight: '900',
-    },
-    title: {
-        ...theme.typography.header,
-        fontSize: 28,
-        marginBottom: 8,
-    },
-    price: {
-        ...theme.typography.body,
-        fontSize: 18,
-        fontWeight: 'bold',
+    indicator: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E5E5EA',
+        borderRadius: 2,
+        alignSelf: 'center',
         marginBottom: 24,
     },
-    description: {
-        ...theme.typography.body,
-        color: theme.colors.darkGray,
-        lineHeight: 22,
-        marginBottom: 32,
-    },
-    sectionLabel: {
-        ...theme.typography.subHeader,
-        fontSize: 12,
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
         marginBottom: 16,
     },
+    tag: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#007AFF',
+        marginBottom: 4,
+        letterSpacing: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#000',
+        lineHeight: 28,
+        marginRight: 10,
+    },
+    price: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#000',
+    },
+    description: {
+        fontSize: 14,
+        lineHeight: 22,
+        color: '#666',
+        marginBottom: 32,
+    },
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#8E8E93',
+        marginBottom: 12,
+        letterSpacing: 1,
+    },
     sizeScroll: {
-        marginBottom: 20,
+        marginBottom: 32,
     },
     sizeBox: {
-        width: 60,
-        height: 48,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         borderWidth: 1,
-        borderColor: theme.colors.lightGray,
-        borderRadius: 24,
+        borderColor: '#E5E5EA',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
     },
-    sizeText: {
-        ...theme.typography.body,
-        fontWeight: 'bold',
-    },
     activeSizeBox: {
-        backgroundColor: theme.colors.black,
-        borderColor: theme.colors.black,
+        backgroundColor: '#000',
+        borderColor: '#000',
+    },
+    sizeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#000',
     },
     activeSizeText: {
-        color: theme.colors.white,
+        color: '#FFF',
     },
-    bottomBarContainer: {
-        position: 'absolute',
-        bottom: 25,
-        width: '100%',
-        paddingHorizontal: 20,
-    },
-    bottomBar: {
-        width: '100%',
-        padding: 20,
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        borderRadius: 30,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    totalPrice: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-        color: theme.colors.lightGray,
-    },
-    priceValue: {
-        ...theme.typography.body,
-        fontSize: 18,
-        fontWeight: '900',
-    },
-    ratingSection: {
-        marginTop: 10,
+    reviewSection: {
         marginBottom: 20,
-    },
-    ratingHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    ratingScore: {
-        ...theme.typography.header,
-        fontSize: 32,
-        lineHeight: 32,
-    },
-    starsRow: {
-        flexDirection: 'row',
-        marginVertical: 4,
-    },
-    ratingCount: {
-        ...theme.typography.body,
-        fontSize: 12,
-        color: theme.colors.darkGray,
-    },
-    writeReviewBtn: {
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.black,
-        paddingBottom: 2,
-    },
-    writeReviewText: {
-        ...theme.typography.subHeader,
-        fontSize: 10,
-    },
-    reviewCard: {
-        backgroundColor: theme.colors.gray,
-        padding: 16,
-        borderRadius: 12,
     },
     reviewHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    ratingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    ratingText: {
+        color: '#FFF',
+        fontWeight: '600',
+        fontSize: 12,
+        marginLeft: 4,
+    },
+    reviewCard: {
+        backgroundColor: '#F2F2F7',
+        borderRadius: 16,
+        padding: 16,
+    },
+    reviewUser: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    avatarPlaceholder: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#E5E5EA',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    avatarText: {
+        fontWeight: '600',
+        fontSize: 14,
     },
     reviewerName: {
-        fontWeight: 'bold',
+        fontWeight: '600',
         fontSize: 14,
     },
     reviewDate: {
-        fontSize: 10,
-        color: theme.colors.darkGray,
+        marginLeft: 'auto',
+        fontSize: 12,
+        color: '#8E8E93',
     },
     reviewText: {
-        ...theme.typography.body,
-        marginTop: 8,
         fontSize: 13,
-        lineHeight: 20,
+        color: '#333',
+        lineHeight: 18,
+    },
+    bottomBar: {
+        position: 'absolute',
+        bottom: 0,
+        width: '100%',
+        backgroundColor: '#FFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    totalContainer: {
+        marginRight: 20,
+    },
+    totalLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#8E8E93',
+        letterSpacing: 0.5,
+    },
+    totalPrice: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#000',
+    },
+    swipeContainer: {
+        flex: 1,
+        height: 50,
     },
 });
 

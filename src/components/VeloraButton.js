@@ -1,9 +1,8 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { theme } from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const VeloraButton = ({ title, onPress, variant = 'primary', style, disabled }) => {
+const VeloraButton = ({ title, onPress, variant = 'primary', style, disabled, isLoading }) => {
     const isPrimary = variant === 'primary';
 
     return (
@@ -11,27 +10,37 @@ const VeloraButton = ({ title, onPress, variant = 'primary', style, disabled }) 
             style={[
                 styles.button,
                 isPrimary ? styles.primaryButton : styles.secondaryButton,
-                disabled && styles.disabledButton,
+                (disabled || isLoading) && styles.disabledButton,
                 style
             ]}
             onPress={onPress}
             activeOpacity={0.8}
-            disabled={disabled}
+            disabled={disabled || isLoading}
         >
             <View style={styles.content}>
-                <Text style={[
-                    styles.text,
-                    isPrimary ? styles.primaryText : styles.secondaryText,
-                    disabled && styles.disabledText
-                ]}>
-                    {title}
-                </Text>
-                {!disabled && (
-                    <MaterialCommunityIcons
-                        name="arrow-right"
-                        size={18}
-                        color={isPrimary ? theme.colors.white : theme.colors.black}
+                {isLoading ? (
+                    <ActivityIndicator 
+                        size="small" 
+                        color={isPrimary ? theme.colors.white : theme.colors.black} 
+                        style={{ marginRight: 10 }}
                     />
+                ) : (
+                    <>
+                        <Text style={[
+                            styles.text,
+                            isPrimary ? styles.primaryText : styles.secondaryText,
+                            disabled && styles.disabledText
+                        ]}>
+                            {title}
+                        </Text>
+                        {!disabled && (
+                            <MaterialCommunityIcons
+                                name="arrow-right"
+                                size={18}
+                                color={isPrimary ? theme.colors.white : theme.colors.black}
+                            />
+                        )}
+                    </>
                 )}
             </View>
         </TouchableOpacity>

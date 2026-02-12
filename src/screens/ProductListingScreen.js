@@ -5,221 +5,142 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
     Dimensions,
-    FlatList
+    FlatList,
+    ActivityIndicator,
+    Image
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { db } from '../config/firebase';
 import { collection, query, onSnapshot } from 'firebase/firestore';
+import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 60) / 2;
+const COLUMN_WIDTH = (width - 48) / 2; // 24px padding on sides, 16px gap = (W - 48 - 15) / 2 roughly? Let's use flex gap.
 
 const CATEGORY_DATA = {
-    "Shoes": [
-        "Men's Sneakers", "Men's Running", "Men's Formal", "Men's Casual",
-        "Women's Sneakers", "Women's Heels", "Women's Flats", "Women's Casual",
-        "Unisex Sneakers", "Unisex Slides"
-    ],
-    "Men": ["Tops", "Bottoms", "Shirts", "Winter Wear"],
-    "Women": ["Dresses", "Tops", "Bottoms", "Winter Wear", "Ethnic Wear"],
-    "Accessories": [
-        "Men's Wallets", "Men's Belts", "Men's Sunglasses", "Men's Watches",
-        "Women's Handbags", "Women's Jewellery", "Women's Sunglasses", "Women's Watches"
-    ]
+    "Shoes": ["Sneakers", "Running", "Formal", "Sandals"],
+    "Men": ["T-Shirts", "Shirts", "Bottoms", "Jackets"],
+    "Women": ["Dresses", "Tops", "Skirts", "Activewear"],
+    "Accessories": ["Watches", "Bags", "Jewellery", "Eyewear"]
 };
 
 const ProductListingScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
-    const [allProducts, setAllProducts] = useState([]); // Store all fetched products
-    const [displayedProducts, setDisplayedProducts] = useState([]); // Store filtered/sorted products
-    const [selectedCategory, setSelectedCategory] = useState('ALL');
-    const [sortByPrice, setSortByPrice] = useState(null); // null, 'asc', 'desc'
-    const categoryName = route?.params?.category || 'DISCOVER';
+    const [allProducts, setAllProducts] = useState([]);
+    const [displayedProducts, setDisplayedProducts] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [isLoading, setIsLoading] = useState(true);
+    const categoryName = route?.params?.category || 'Collection';
 
-    // Determine chips based on category
-    const chips = CATEGORY_DATA[categoryName]
-        ? ['ALL', ...CATEGORY_DATA[categoryName]]
-        : ['ALL', 'SNEAKERS', 'APPAREL', 'ACCESSORIES', 'LIMITED'];
+    // Derived chips
+    const chips = ['All', ...(CATEGORY_DATA[categoryName] || ['New', 'Trending', 'Sale'])];
 
-    // Initial fetch
     useEffect(() => {
+        setIsLoading(true);
         const q = query(collection(db, "products"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const productsList = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    createdAt: data.createdAt?.toDate().toISOString(),
-                    updatedAt: data.updatedAt?.toDate().toISOString(),
-                };
-            });
-            setAllProducts(productsList);
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setAllProducts(list);
+            setDisplayedProducts(list); // simplified for demo
+            setIsLoading(false);
         });
-
         return () => unsubscribe();
     }, []);
 
-    // Handle initial category from navigation params or default
+    // Simple Filter Logic (Client Side for demo smoothness)
     useEffect(() => {
-        // Reset selected category when switching views
-        setSelectedCategory('ALL');
-    }, [categoryName]);
-
-    // Filter & Sort Logic
-    useEffect(() => {
-        let result = [...allProducts];
-
-        // 1. Context Filter (Navigation Params - Strict Base Filter)
-        if (categoryName && categoryName !== 'DISCOVER') {
-            if (categoryName === 'Men') {
-                result = result.filter(p => p.category === 'Men' || (p.subCategory && (p.subCategory.includes('Men') || p.subCategory.includes('Unisex'))));
-            } else if (categoryName === 'Women') {
-                result = result.filter(p => p.category === 'Women' || (p.subCategory && (p.subCategory.includes('Women') || p.subCategory.includes('Unisex'))));
-            } else if (categoryName === 'Accessories') {
-                result = result.filter(p => p.category === 'Accessories');
-            } else if (categoryName === 'Shoes') {
-                result = result.filter(p => p.category === 'Shoes' || (p.subCategory && (p.subCategory.includes('Men\'s') || p.subCategory.includes('Women\'s'))));
-            } else if (categoryName === 'New Arrivals') {
-                result = result.filter(p => p.isNewArrival === true);
-            }
+        let result = allProducts;
+        if (selectedCategory !== 'All') {
+            const searchLower = selectedCategory.toLowerCase();
+            result = result.filter(p =>
+                (p.category && p.category.toLowerCase() === searchLower) ||
+                (p.tags && p.tags.some(t => t.toLowerCase() === searchLower)) ||
+                (p.name && p.name.toLowerCase().includes(searchLower)) ||
+                (p.brand && p.brand.toLowerCase().includes(searchLower))
+            );
         }
-
-        // 2. Chip Filter (Sub-filter within the context)
-        if (selectedCategory !== 'ALL') {
-            // Check if it's a dynamic sub-category
-            if (CATEGORY_DATA[categoryName] && CATEGORY_DATA[categoryName].includes(selectedCategory)) {
-                result = result.filter(p => p.subCategory === selectedCategory);
-            } else {
-                // Fallback for DISCOVER / Generic chips
-                switch (selectedCategory) {
-                    case 'SNEAKERS':
-                        result = result.filter(p => p.category === 'Shoes');
-                        break;
-                    case 'APPAREL':
-                        result = result.filter(p => p.category === 'Men' || p.category === 'Women');
-                        break;
-                    case 'ACCESSORIES':
-                        result = result.filter(p => p.category === 'Accessories');
-                        break;
-                    case 'LIMITED':
-                        result = result.filter(p => p.stock < 10 || p.tag === 'LIMITED');
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        // 2. Sort by Price
-        if (sortByPrice) {
-            result.sort((a, b) => {
-                const priceA = parseFloat(a.price);
-                const priceB = parseFloat(b.price);
-                return sortByPrice === 'asc' ? priceA - priceB : priceB - priceA;
-            });
-        }
-
         setDisplayedProducts(result);
-    }, [allProducts, selectedCategory, sortByPrice]);
-
-    const toggleSort = () => {
-        setSortByPrice(prev => {
-            if (prev === null) return 'asc';
-            if (prev === 'asc') return 'desc';
-            return null; // Reset
-        });
-    };
+    }, [selectedCategory, allProducts]);
 
     const renderProduct = ({ item }) => (
         <TouchableOpacity
             style={styles.productCard}
             onPress={() => navigation.navigate('ProductDetail', { product: item })}
+            activeOpacity={0.9}
         >
-            <View style={styles.imageWrapper}>
+            <View style={styles.imageContainer}>
                 <Image source={{ uri: item.image }} style={styles.productImage} />
-                {item.tag && (
-                    <View style={styles.tagBox}>
-                        <Text style={styles.tagText}>{item.tag}</Text>
-                    </View>
-                )}
-                <TouchableOpacity style={styles.wishlistBtn}>
-                    <MaterialCommunityIcons name="heart-outline" size={20} color={theme.colors.black} />
+                <TouchableOpacity style={styles.favButton}>
+                    <Ionicons name="heart-outline" size={18} color="#000" />
                 </TouchableOpacity>
+                {item.tag && (
+                    <BlurView intensity={80} tint="light" style={styles.tagBadge}>
+                        <Text style={styles.tagText}>{item.tag}</Text>
+                    </BlurView>
+                )}
             </View>
-            <View style={styles.productInfo}>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.productPrice}>₹{item.price}</Text>
+            <View style={styles.productMeta}>
+                <Text style={styles.brand}>{item.brand}</Text>
+                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.price}>{item.price}</Text>
             </View>
         </TouchableOpacity>
     );
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <MaterialCommunityIcons name="arrow-left" size={26} color={theme.colors.black} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{categoryName.toUpperCase()}</Text>
-                <TouchableOpacity>
-                    <MaterialCommunityIcons name="magnify" size={26} color={theme.colors.black} />
-                </TouchableOpacity>
-            </View>
+            <BlurView intensity={90} tint="light" style={[styles.header, { paddingTop: insets.top }]}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+                        <Ionicons name="arrow-back" size={24} color="#000" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{categoryName.toUpperCase()}</Text>
+                    <TouchableOpacity style={styles.iconBtn}>
+                        <Ionicons name="search" size={24} color="#000" />
+                    </TouchableOpacity>
+                </View>
 
-            {/* Filter & Sort Bar */}
-            <View style={styles.filterBar}>
-                <TouchableOpacity style={styles.filterBtn}>
-                    <MaterialCommunityIcons name="tune-vertical" size={20} color={theme.colors.black} />
-                    <Text style={styles.filterText}>FILTER</Text>
-                </TouchableOpacity>
-                <View style={styles.divider} />
-                <TouchableOpacity style={styles.filterBtn} onPress={toggleSort}>
-                    <MaterialCommunityIcons
-                        name={sortByPrice === 'asc' ? "sort-ascending" : sortByPrice === 'desc' ? "sort-descending" : "sort-variant"}
-                        size={20}
-                        color={theme.colors.black}
-                    />
-                    <Text style={styles.filterText}>
-                        SORT {sortByPrice ? (sortByPrice === 'asc' ? '(LOW-HIGH)' : '(HIGH-LOW)') : ''}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Categories */}
-            <View style={styles.categoryContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                    {chips.map((cat) => (
+                {/* Filter Chips */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterScroll}
+                >
+                    {chips.map((chip) => (
                         <TouchableOpacity
-                            key={cat}
-                            style={[styles.catChip, selectedCategory === cat && styles.activeCatChip]}
-                            onPress={() => setSelectedCategory(cat)}
+                            key={chip}
+                            style={[styles.chip, selectedCategory === chip && styles.activeChip]}
+                            onPress={() => setSelectedCategory(chip)}
                         >
-                            <Text style={[styles.catText, selectedCategory === cat && styles.activeCatText]}>{cat}</Text>
+                            <Text style={[styles.chipText, selectedCategory === chip && styles.activeChipText]}>
+                                {chip}
+                            </Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-            </View>
+            </BlurView>
 
-            <FlatList
-                data={displayedProducts}
-                renderItem={renderProduct}
-                keyExtractor={(item) => item.id}
-                numColumns={2}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContent}
-                columnWrapperStyle={styles.columnWrapper}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>No products found in this category.</Text>
-                    </View>
-                }
-            />
+            {/* List */}
+            {isLoading ? (
+                <ActivityIndicator style={styles.loader} size="large" color="#000" />
+            ) : (
+                <FlatList
+                    data={displayedProducts}
+                    renderItem={renderProduct}
+                    keyExtractor={item => item.id}
+                    numColumns={2}
+                    contentContainerStyle={[
+                        styles.listContent,
+                        { paddingTop: insets.top + 100 } // Header height
+                    ]}
+                    columnWrapperStyle={styles.columnWrapper}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
         </View>
     );
 };
@@ -227,147 +148,138 @@ const ProductListingScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#FFFFFF',
     },
     header: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        backgroundColor: 'rgba(255,255,255,0.85)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
+    },
+    headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
+        paddingHorizontal: 16,
+        height: 50,
     },
     headerTitle: {
-        ...theme.typography.header,
         fontSize: 16,
-        letterSpacing: 2,
+        fontWeight: '700',
+        letterSpacing: 1,
+        color: '#000',
     },
-    filterBar: {
-        flexDirection: 'row',
-        height: 50,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
-    },
-    filterBtn: {
-        flex: 1,
-        flexDirection: 'row',
+    iconBtn: {
+        width: 40,
+        height: 40,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    filterText: {
-        ...theme.typography.subHeader,
-        fontSize: 12,
-        marginLeft: 8,
-        letterSpacing: 1,
+    filterScroll: {
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+        paddingTop: 4,
     },
-    divider: {
-        width: 1,
-        height: '60%',
-        backgroundColor: theme.colors.gray,
-        alignSelf: 'center',
-    },
-    categoryContainer: {
-        paddingVertical: 15,
-    },
-    categoryScroll: {
-        paddingHorizontal: 15,
-    },
-    catChip: {
+    chip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        marginHorizontal: 5,
-        borderRadius: 20,
-        backgroundColor: theme.colors.gray,
+        borderRadius: 100,
+        backgroundColor: '#F2F2F7',
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'transparent',
     },
-    activeCatChip: {
-        backgroundColor: theme.colors.black,
+    activeChip: {
+        backgroundColor: '#000',
+        borderColor: '#000',
     },
-    catText: {
-        ...theme.typography.body,
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: theme.colors.darkGray,
+    chipText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#000',
     },
-    activeCatText: {
-        color: theme.colors.white,
+    activeChipText: {
+        color: '#FFF',
+    },
+    loader: {
+        marginTop: 200,
     },
     listContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         paddingBottom: 40,
     },
     columnWrapper: {
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     productCard: {
         width: COLUMN_WIDTH,
     },
-    imageWrapper: {
-        width: COLUMN_WIDTH,
-        height: COLUMN_WIDTH * 1.3,
-        backgroundColor: theme.colors.gray,
-        borderRadius: 4,
+    imageContainer: {
+        width: '100%',
+        height: COLUMN_WIDTH * 1.4,
+        borderRadius: 12,
+        backgroundColor: '#F2F2F7',
         overflow: 'hidden',
-        marginBottom: 10,
+        marginBottom: 12,
+        position: 'relative',
     },
     productImage: {
         width: '100%',
         height: '100%',
         resizeMode: 'cover',
     },
-    tagBox: {
-        position: 'absolute',
-        top: 10,
-        left: 10,
-        backgroundColor: theme.colors.black,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-    },
-    tagText: {
-        color: theme.colors.white,
-        fontSize: 9,
-        fontWeight: '900',
-    },
-    wishlistBtn: {
+    favButton: {
         position: 'absolute',
         top: 10,
         right: 10,
         width: 32,
         height: 32,
-        backgroundColor: 'rgba(255,255,255,0.8)',
         borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    productInfo: {
+    tagBadge: {
+        position: 'absolute',
+        bottom: 10,
+        left: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    tagText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#000',
+        textTransform: 'uppercase',
+    },
+    productMeta: {
         paddingHorizontal: 4,
     },
-    productBrand: {
-        ...theme.typography.subHeader,
-        fontSize: 9,
-        color: theme.colors.darkGray,
+    brand: {
+        fontSize: 11,
+        color: '#8E8E93',
+        fontWeight: '600',
         marginBottom: 2,
+        textTransform: 'uppercase',
     },
-    productName: {
-        ...theme.typography.body,
-        fontSize: 12,
-        fontWeight: 'bold',
+    name: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#000',
         marginBottom: 4,
     },
-    productPrice: {
-        ...theme.typography.body,
-        fontSize: 12,
+    price: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#000',
     },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        marginTop: 50,
-    },
-    emptyText: {
-        ...theme.typography.body,
-        color: theme.colors.lightGray,
-    }
 });
 
 export default ProductListingScreen;

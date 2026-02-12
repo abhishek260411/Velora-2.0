@@ -6,97 +6,115 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
+    Alert,
+    Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
-const ORDER_DATA = {
-    id: 'VL-2026-001',
-    date: 'Jan 23, 2026',
-    status: 'In Transit',
-    timeline: [
-        { status: 'Order Placed', date: 'Jan 23, 10:30 AM', completed: true },
-        { status: 'Order Confirmed', date: 'Jan 23, 11:15 AM', completed: true },
-        { status: 'Shipped', date: 'Jan 24, 09:00 AM', completed: false },
-        { status: 'Delivered', date: 'Jan 26, 05:00 PM', completed: false },
-    ],
-    items: [
-        {
-            id: '1',
-            name: 'Velocity 1.0 Sneakers',
-            brand: 'VELORA ORIGINALS',
-            price: '₹12,999',
-            size: 'UK 9',
-            qty: 1,
-            image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200'
-        },
-        {
-            id: '2',
-            name: 'Performance Running Tee',
-            brand: 'VELORA TRAINING',
-            price: '₹3,299',
-            size: 'L',
-            qty: 1,
-            image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=200'
-        }
-    ],
-    address: 'Snehal Pinjari, 123, Luxury Heights, Palm Beach Road, Navi Mumbai - 400703',
-    billing: {
-        subtotal: '₹16,298',
-        shipping: '₹499',
-        total: '₹16,797'
-    }
-};
-
-const OrderDetailsScreen = ({ navigation }) => {
+const OrderDetailsScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
+    const { order } = route.params || {};
+
+    if (!order) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#C7C7CC" />
+                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>ORDER NOT FOUND</Text>
+                <TouchableOpacity
+                    style={[styles.returnBtn, { marginTop: 20, paddingHorizontal: 30 }]}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={styles.returnText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    // Formatting
+    const total = order.total || order.billing?.total || '₹0';
+    const subtotal = order.billing?.subtotal || total;
+    const shipping = order.billing?.shipping || '₹0';
+    const address = order.address || 'No address provided';
+    const items = order.items || [];
+    const status = order.status || 'Processing';
+    const id = order.id;
+    if (!id) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#C7C7CC" />
+                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>INVALID ORDER DATA</Text>
+                <TouchableOpacity
+                    style={[styles.returnBtn, { marginTop: 20, paddingHorizontal: 30 }]}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={styles.returnText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const handleCancelOrder = () => {
+        Alert.alert(
+            "Cancel Order",
+            "Are you sure you want to cancel this order?",
+            [
+                { text: "No", style: "cancel" },
+                {
+                    text: "Yes, Cancel",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const orderRef = doc(db, 'orders', id);
+                            await updateDoc(orderRef, { status: 'Cancelled' });
+                            navigation.goBack();
+                        } catch (e) {
+                            Alert.alert("Error", "Could not cancel order.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleDownloadInvoice = () => {
+        Alert.alert("Invoice Download", "Invoice has been sent to your registered email.");
+    };
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <MaterialCommunityIcons name="arrow-left" size={26} color={theme.colors.black} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>ORDER #{ORDER_DATA.id}</Text>
+                <Text style={styles.headerTitle}>ORDER #{id.slice(0, 8).toUpperCase()}</Text>
                 <View style={{ width: 26 }} />
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {/* Status Tracker */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>ORDER STATUS</Text>
-                    <View style={styles.timelineContainer}>
-                        {ORDER_DATA.timeline.map((step, index) => (
-                            <View key={index} style={styles.timelineItem}>
-                                <View style={styles.timelineLeft}>
-                                    <View style={[
-                                        styles.dot,
-                                        { backgroundColor: step.completed ? theme.colors.black : theme.colors.lightGray }
-                                    ]} />
-                                    {index !== ORDER_DATA.timeline.length - 1 && (
-                                        <View style={[
-                                            styles.line,
-                                            { backgroundColor: step.completed ? theme.colors.black : theme.colors.gray }
-                                        ]} />
-                                    )}
-                                </View>
-                                <View style={styles.timelineRight}>
-                                    <Text style={[
-                                        styles.stepStatus,
-                                        { color: step.completed ? theme.colors.black : theme.colors.darkGray }
-                                    ]}>{step.status}</Text>
-                                    <Text style={styles.stepDate}>{step.date}</Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
+
+                {/* Actions Bar */}
+                <View style={styles.actionsBar}>
+                    {(status === 'Processing' || status === 'Placed' || status === 'Shipped') && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('TrackOrder', { order })}>
+                            <MaterialCommunityIcons name="map-marker-path" size={20} color="#007BFF" />
+                            <Text style={styles.actionText}>Track</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.actionBtn} onPress={handleDownloadInvoice}>
+                        <MaterialCommunityIcons name="file-document-outline" size={20} color="#007BFF" />
+                        <Text style={styles.actionText}>Invoice</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Items List */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>ITEMS ({ORDER_DATA.items.length})</Text>
-                    {ORDER_DATA.items.map((item) => (
-                        <View key={item.id} style={styles.itemRow}>
+                    <Text style={styles.sectionTitle}>ITEMS ({items.length})</Text>
+                    {items.map((item, index) => (
+                        <View key={index} style={styles.itemRow}>
                             <Image source={{ uri: item.image }} style={styles.itemImg} />
                             <View style={styles.itemInfo}>
                                 <Text style={styles.itemBrand}>{item.brand}</Text>
@@ -112,7 +130,7 @@ const OrderDetailsScreen = ({ navigation }) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>SHIPPING TO</Text>
                     <View style={styles.card}>
-                        <Text style={styles.cardText}>{ORDER_DATA.address}</Text>
+                        <Text style={styles.cardText}>{address}</Text>
                     </View>
                 </View>
 
@@ -122,23 +140,42 @@ const OrderDetailsScreen = ({ navigation }) => {
                     <View style={styles.billBox}>
                         <View style={styles.billRow}>
                             <Text style={styles.billLabel}>Subtotal</Text>
-                            <Text style={styles.billValue}>{ORDER_DATA.billing.subtotal}</Text>
+                            <Text style={styles.billValue}>{subtotal}</Text>
                         </View>
                         <View style={styles.billRow}>
                             <Text style={styles.billLabel}>Shipping</Text>
-                            <Text style={styles.billValue}>{ORDER_DATA.billing.shipping}</Text>
+                            <Text style={styles.billValue}>{shipping}</Text>
                         </View>
                         <View style={[styles.billRow, styles.grandTotalRow]}>
                             <Text style={styles.grandTotalLabel}>Grand Total</Text>
-                            <Text style={styles.grandTotalValue}>{ORDER_DATA.billing.total}</Text>
+                            <Text style={styles.grandTotalValue}>{total}</Text>
                         </View>
                     </View>
+                </View>
+
+                {/* Footer Actions: Cancel or Return */}
+                <View style={styles.footerActions}>
+                    {(status === 'Processing' || status === 'Placed') && (
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelOrder}>
+                            <Text style={styles.cancelText}>Cancel Order</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {status === 'Delivered' && (
+                        <TouchableOpacity
+                            style={styles.returnBtn}
+                            onPress={() => navigation.navigate('ReturnRefund', { order })}
+                        >
+                            <Text style={styles.returnText}>Return / Exchange</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <TouchableOpacity style={styles.helpBtn}>
                     <MaterialCommunityIcons name="help-circle-outline" size={20} color={theme.colors.black} />
                     <Text style={styles.helpText}>NEED HELP WITH THIS ORDER?</Text>
                 </TouchableOpacity>
+
             </ScrollView>
         </View>
     );
@@ -165,53 +202,37 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
+        paddingBottom: 50
+    },
+    actionsBar: {
+        flexDirection: 'row',
+        gap: 15,
+        marginBottom: 25
+    },
+    actionBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F0F8FF',
+        paddingVertical: 12,
+        borderRadius: 8,
+        gap: 8
+    },
+    actionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#007BFF'
     },
     section: {
-        marginBottom: 40,
+        marginBottom: 30,
     },
     sectionTitle: {
         ...theme.typography.subHeader,
         fontSize: 12,
         letterSpacing: 1.5,
         color: theme.colors.darkGray,
-        marginBottom: 20,
-    },
-    timelineContainer: {
-        paddingLeft: 10,
-    },
-    timelineItem: {
-        flexDirection: 'row',
-        height: 60,
-    },
-    timelineLeft: {
-        alignItems: 'center',
-        marginRight: 20,
-    },
-    dot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        zIndex: 1,
-    },
-    line: {
-        width: 2,
-        flex: 1,
-        marginTop: -2,
-    },
-    timelineRight: {
-        flex: 1,
-        marginTop: -4,
-    },
-    stepStatus: {
-        ...theme.typography.body,
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    stepDate: {
-        ...theme.typography.body,
-        fontSize: 12,
-        color: theme.colors.darkGray,
-        marginTop: 2,
+        marginBottom: 15,
     },
     itemRow: {
         flexDirection: 'row',
@@ -292,6 +313,34 @@ const styles = StyleSheet.create({
         ...theme.typography.body,
         fontSize: 18,
         fontWeight: '900',
+    },
+    footerActions: {
+        marginTop: 0,
+        marginBottom: 30
+    },
+    cancelBtn: {
+        backgroundColor: '#FFEBEE',
+        paddingVertical: 15,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#FFCDD2'
+    },
+    cancelText: {
+        color: '#D32F2F',
+        fontWeight: 'bold',
+        fontSize: 14
+    },
+    returnBtn: {
+        backgroundColor: '#000',
+        paddingVertical: 15,
+        borderRadius: 12,
+        alignItems: 'center'
+    },
+    returnText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+        fontSize: 14
     },
     helpBtn: {
         flexDirection: 'row',

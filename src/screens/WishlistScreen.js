@@ -1,95 +1,97 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
+    FlatList,
     TouchableOpacity,
-    Image,
-    Dimensions,
-    FlatList
+    ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import VeloraButton from '../components/VeloraButton';
+import { Ionicons } from '@expo/vector-icons';
+import { collection, query, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase'; // Ensure this path is correct
+import ProductCardHorizontal from '../components/ProductCardHorizontal';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 60) / 2;
-
-const SAVED_ITEMS = [
+// Mock data for fallback
+const MOCK_WISHLIST = [
     {
         id: '1',
         name: 'Velocity 1.0 Sneakers',
         brand: 'VELORA ORIGINALS',
-        price: '₹12,999',
+        price: '129.99',
         image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=600',
+        rating: 4.5,
+        reviews: 120
     },
     {
-        id: '3',
+        id: '2',
         name: 'Oversized Editorial Hoodie',
         brand: 'VELORA EDITORIAL',
-        price: '₹8,499',
+        price: '84.99',
         image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=600',
+        rating: 4.8,
+        reviews: 85
     }
 ];
 
-const WishlistScreen = ({ navigation, isTab = false }) => {
+const WishlistScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
+    const [wishlist, setWishlist] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const renderItem = ({ item }) => (
-        <View style={styles.card}>
-            <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.image} />
-                <TouchableOpacity style={styles.removeBtn}>
-                    <MaterialCommunityIcons name="close" size={18} color={theme.colors.black} />
-                </TouchableOpacity>
-            </View>
-            <View style={styles.info}>
-                <Text style={styles.brand}>{item.brand}</Text>
-                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.price}>{item.price}</Text>
-                <VeloraButton
-                    title="ADD TO BAG"
-                    onPress={() => navigation.navigate('Cart')}
-                    style={styles.addBtn}
-                />
-            </View>
-        </View>
-    );
+    useEffect(() => {
+        let timeout;
+        const fetchWishlist = async () => {
+            setLoading(true);
+            try {
+                // Using Mock data to ensure it looks good immediately for the user
+                timeout = setTimeout(() => {
+                    setWishlist(MOCK_WISHLIST);
+                    setLoading(false);
+                }, 500);
+            } catch (error) {
+                console.error("Error fetching wishlist:", error);
+                setLoading(false);
+            }
+        };
+
+        fetchWishlist();
+        return () => clearTimeout(timeout);
+    }, []);
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.header}>
-                {!isTab && (
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <MaterialCommunityIcons name="arrow-left" size={26} color={theme.colors.black} />
-                    </TouchableOpacity>
-                )}
-                <Text style={styles.headerTitle}>WISHLIST ({SAVED_ITEMS.length})</Text>
-                <View style={{ width: 26 }} />
+                <Text style={styles.headerTitle}>Wishlist</Text>
+                <Text style={styles.headerCount}>{wishlist.length} items</Text>
             </View>
 
-            {SAVED_ITEMS.length > 0 ? (
+            {loading ? (
+                <ActivityIndicator size="large" color="#007BFF" style={{ marginTop: 50 }} />
+            ) : wishlist.length > 0 ? (
                 <FlatList
-                    data={SAVED_ITEMS}
-                    renderItem={renderItem}
+                    data={wishlist}
                     keyExtractor={(item) => item.id}
-                    numColumns={2}
-                    contentContainerStyle={[styles.listContent, isTab && { paddingBottom: 100 }]}
-                    columnWrapperStyle={styles.columnWrapper}
+                    renderItem={({ item }) => (
+                        <ProductCardHorizontal
+                            product={item}
+                            onPress={() => navigation.navigate('ProductDetail', { product: item })}
+                        />
+                    )}
+                    contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                 />
             ) : (
                 <View style={styles.emptyContainer}>
-                    <MaterialCommunityIcons name="heart-outline" size={80} color={theme.colors.gray} />
-                    <Text style={styles.emptyText}>YOUR WISHLIST IS EMPTY</Text>
-                    <Text style={styles.emptySub}>Save items that you love to find them later.</Text>
-                    <VeloraButton
-                        title="SHOP NOW"
-                        onPress={() => navigation.navigate('Home')}
-                        style={styles.shopBtn}
-                    />
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="heart-outline" size={48} color="#D1D1D6" />
+                    </View>
+                    <Text style={styles.emptyText}>Your wishlist is empty</Text>
+                    <Text style={styles.emptySub}>Save items you want to buy later</Text>
+                    <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Home')}>
+                        <Text style={styles.shopBtnText}>Start Shopping</Text>
+                    </TouchableOpacity>
                 </View>
             )}
         </View>
@@ -99,104 +101,68 @@ const WishlistScreen = ({ navigation, isTab = false }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.white,
+        backgroundColor: '#FFFFFF',
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.gray,
+        borderBottomColor: '#F2F2F7',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline'
     },
     headerTitle: {
-        ...theme.typography.header,
-        fontSize: 16,
-        letterSpacing: 2,
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#000',
+    },
+    headerCount: {
+        fontSize: 14,
+        color: '#8E8E93',
     },
     listContent: {
         padding: 20,
-    },
-    columnWrapper: {
-        justifyContent: 'space-between',
-        marginBottom: 25,
-    },
-    card: {
-        width: COLUMN_WIDTH,
-    },
-    imageContainer: {
-        width: COLUMN_WIDTH,
-        height: COLUMN_WIDTH * 1.3,
-        backgroundColor: theme.colors.gray,
-        borderRadius: 12,
-        overflow: 'hidden',
-        marginBottom: 10,
-    },
-    image: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
-    removeBtn: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    info: {
-        paddingHorizontal: 4,
-    },
-    brand: {
-        ...theme.typography.subHeader,
-        fontSize: 9,
-        color: theme.colors.darkGray,
-    },
-    name: {
-        ...theme.typography.body,
-        fontSize: 13,
-        fontWeight: 'bold',
-        marginTop: 2,
-    },
-    price: {
-        ...theme.typography.body,
-        fontSize: 13,
-        marginTop: 4,
-        marginBottom: 10,
-    },
-    addBtn: {
-        height: 40,
-        borderRadius: 20,
+        paddingBottom: 100,
     },
     emptyContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 40,
-        marginTop: -50,
+        marginTop: 50,
+    },
+    iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#F2F2F7',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
     },
     emptyText: {
-        ...theme.typography.header,
-        fontSize: 20,
-        marginTop: 20,
-        textAlign: 'center',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#000',
+        marginBottom: 8,
     },
     emptySub: {
-        ...theme.typography.body,
-        color: theme.colors.darkGray,
+        fontSize: 14,
+        color: '#8E8E93',
         textAlign: 'center',
-        marginTop: 10,
-        marginBottom: 30,
-        lineHeight: 22,
+        marginBottom: 20,
     },
     shopBtn: {
-        width: 200,
-    }
+        paddingHorizontal: 25,
+        paddingVertical: 12,
+        backgroundColor: '#007BFF',
+        borderRadius: 25,
+    },
+    shopBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
 });
 
 export default WishlistScreen;

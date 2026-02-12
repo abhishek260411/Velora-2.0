@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -7,9 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import VeloraInput from '../components/VeloraInput';
 import VeloraButton from '../components/VeloraButton';
 import { validatePhone, validateEmail } from '../utils/userUtils';
+import VeloraModal from '../components/VeloraModal';
+import { useVeloraModal } from '../hooks/useVeloraModal';
 
 const EditProfileScreen = ({ navigation }) => {
     const { userData, updateUserProfile } = useAuth();
+    const modal = useVeloraModal();
 
     // Form state
     const [displayName, setDisplayName] = useState(userData?.displayName || '');
@@ -23,12 +26,12 @@ const EditProfileScreen = ({ navigation }) => {
     const handleSave = async () => {
         // Validation
         if (!displayName.trim()) {
-            Alert.alert('Error', 'Please enter your name');
+            modal.showError('Error', 'Please enter your name');
             return;
         }
 
         if (phone && !validatePhone(phone)) {
-            Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+            modal.showError('Error', 'Please enter a valid 10-digit phone number');
             return;
         }
 
@@ -54,15 +57,15 @@ const EditProfileScreen = ({ navigation }) => {
             const result = await updateUserProfile(updates);
 
             if (result.error) {
-                Alert.alert('Error', result.message);
+                modal.showError('Error', result.message);
             } else {
-                Alert.alert('Success', 'Profile updated successfully!', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ]);
+                modal.showSuccess('Success', 'Profile updated successfully!', () => {
+                    navigation.goBack();
+                });
             }
         } catch (error) {
             console.error('Update error:', error);
-            Alert.alert('Error', 'Failed to update profile. Please try again.');
+            modal.showError('Error', 'Failed to update profile. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -167,23 +170,38 @@ const EditProfileScreen = ({ navigation }) => {
                     </View>
 
                     {/* Save Button */}
-                    <VeloraButton
-                        title={isLoading ? "SAVING..." : "SAVE CHANGES"}
-                        onPress={handleSave}
-                        style={styles.saveButton}
-                        disabled={isLoading}
-                    />
+                    <View style={styles.actionContainer}>
+                        <VeloraButton
+                            title={isLoading ? "SAVING..." : "SAVE CHANGES"}
+                            onPress={handleSave}
+                            style={styles.saveButton}
+                            disabled={isLoading}
+                        />
 
-                    <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Text style={styles.cancelButtonText}>CANCEL</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => navigation.goBack()}
+                        >
+                            <Text style={styles.cancelButtonText}>CANCEL</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Modal */}
+            <VeloraModal
+                visible={modal.modalState.visible}
+                type={modal.modalState.type}
+                title={modal.modalState.title}
+                message={modal.modalState.message}
+                primaryButtonText={modal.modalState.primaryButtonText}
+                secondaryButtonText={modal.modalState.secondaryButtonText}
+                onPrimaryPress={modal.modalState.onPrimaryPress}
+                onSecondaryPress={modal.modalState.onSecondaryPress}
+                onClose={modal.hide}
+            />
         </SafeAreaView>
     );
 };
@@ -222,10 +240,9 @@ const styles = StyleSheet.create({
     },
     readOnlyField: {
         paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: theme.colors.lightGray,
-        borderRadius: 8,
-        marginBottom: 12,
+        marginBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.lightGray,
     },
     readOnlyLabel: {
         ...theme.typography.body,
@@ -237,14 +254,15 @@ const styles = StyleSheet.create({
         ...theme.typography.body,
         fontWeight: '600',
     },
-    saveButton: {
+    actionContainer: {
         marginHorizontal: 24,
+    },
+    saveButton: {
         marginBottom: 12,
     },
     cancelButton: {
         alignItems: 'center',
         padding: 16,
-        marginHorizontal: 24,
     },
     cancelButtonText: {
         ...theme.typography.button,

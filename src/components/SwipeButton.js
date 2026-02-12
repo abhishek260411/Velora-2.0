@@ -1,15 +1,17 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     Animated,
     PanResponder,
+    ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../theme';
 
-const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
+const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD", isLoading }) => {
     const [swiped, setSwiped] = useState(false);
     const translateX = useRef(new Animated.Value(0)).current;
 
@@ -20,17 +22,18 @@ const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
 
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => !isLoading && !swiped,
             onMoveShouldSetPanResponder: (_, gestureState) => {
                 // Only claim if horizontal movement is dominant
-                return Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+                return !isLoading && !swiped && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
             },
             onPanResponderGrant: () => {
                 // Optional: visual feedback on touch start
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             },
             onPanResponderMove: (_, gestureState) => {
                 const maxDrag = maxDragRef.current;
-                if (!swiped && maxDrag > 0) {
+                if (!swiped && maxDrag > 0 && !isLoading) {
                     // newX calculation:
                     // Clamp between 0 and maxDrag
                     let newX = gestureState.dx;
@@ -44,7 +47,7 @@ const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
                 const maxDrag = maxDragRef.current;
                 const swipeThreshold = maxDrag * 0.7; // 70% threshold
 
-                if (!swiped && gestureState.dx > swipeThreshold && maxDrag > 0) {
+                if (!swiped && gestureState.dx > swipeThreshold && maxDrag > 0 && !isLoading) {
                     // Success: Snap to end
                     Animated.timing(translateX, {
                         toValue: maxDrag,
@@ -52,16 +55,8 @@ const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
                         useNativeDriver: true,
                     }).start(() => {
                         setSwiped(true);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         onSwipeSuccess && onSwipeSuccess();
-
-                        // Reset after delay
-                        setTimeout(() => {
-                            setSwiped(false);
-                            Animated.spring(translateX, {
-                                toValue: 0,
-                                useNativeDriver: true,
-                            }).start();
-                        }, 2000);
                     });
                 } else {
                     // Failure: Snap back to start
@@ -74,18 +69,49 @@ const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
             },
             // Handle cancellation (e.g. scrolling takes over)
             onPanResponderTerminate: () => {
-                Animated.spring(translateX, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                }).start();
+                if (!swiped && !isLoading) {
+                    Animated.spring(translateX, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                    }).start();
+                }
             }
         })
     ).current;
 
+    // Handle auto-reset when not loading
+    useEffect(() => {
+        let timeout;
+        if (swiped && !isLoading) {
+            timeout = setTimeout(() => {
+                setSwiped(false);
+                Animated.spring(translateX, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                }).start();
+            }, 2000);
+        }
+        return () => clearTimeout(timeout);
+    }, [swiped, isLoading]);
+
+    // Ensure slider stays at end if loading
+    useEffect(() => {
+        if (isLoading && maxDragRef.current > 0) {
+            translateX.setValue(maxDragRef.current);
+            setSwiped(true);
+        }
+    }, [isLoading]);
+
     const handleLayout = (e) => {
         const width = e.nativeEvent.layout.width;
+        const maxDrag = Math.max(0, width - BUTTON_SIZE - (PADDING * 2));
         // Update the ref so PanResponder sees the correct value immediately
-        maxDragRef.current = Math.max(0, width - BUTTON_SIZE - (PADDING * 2));
+        maxDragRef.current = maxDrag;
+
+        if (isLoading && maxDrag > 0) {
+            translateX.setValue(maxDrag);
+            setSwiped(true);
+        }
     };
 
     return (
@@ -94,23 +120,29 @@ const SwipeButton = ({ onSwipeSuccess, title = "SLIDE TO ADD" }) => {
             onLayout={handleLayout}
         >
             <View style={styles.track}>
-                <Text style={styles.title}>{swiped ? "CONFIRMED" : title}</Text>
+                <Text style={styles.title}>
+                    {isLoading ? "PROCESSING..." : (swiped ? "CONFIRMED" : title)}
+                </Text>
             </View>
             <Animated.View
                 style={[
                     styles.thumb,
                     {
                         transform: [{ translateX }],
-                        backgroundColor: swiped ? theme.colors.black : theme.colors.black
+                        backgroundColor: theme.colors.black
                     }
                 ]}
                 {...panResponder.panHandlers}
             >
-                <MaterialCommunityIcons
-                    name={swiped ? "check" : "chevron-right"}
-                    size={28}
-                    color={theme.colors.white}
-                />
+                {isLoading ? (
+                    <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                    <MaterialCommunityIcons
+                        name={swiped ? "check" : "chevron-right"}
+                        size={28}
+                        color={theme.colors.white}
+                    />
+                )}
             </Animated.View>
         </View>
     );

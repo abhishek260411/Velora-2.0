@@ -26,7 +26,6 @@ import RewardsScreen from '../screens/RewardsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SubCategoryScreen from '../screens/SubCategoryScreen';
 import BrandCollectionScreen from '../screens/BrandCollectionScreen';
-import NewArrivalsScreen from '../screens/NewArrivalsScreen';
 import TrendingScreen from '../screens/TrendingScreen';
 import OffersScreen from '../screens/OffersScreen';
 import RecentlyViewedScreen from '../screens/RecentlyViewedScreen';
@@ -159,7 +158,6 @@ const AppNavigator = () => {
             {/* Discovery & Engagement Screens */}
             <Stack.Screen name="SubCategory" component={SubCategoryScreen} />
             <Stack.Screen name="BrandCollection" component={BrandCollectionScreen} />
-            <Stack.Screen name="NewArrivals" component={NewArrivalsScreen} />
             <Stack.Screen name="Trending" component={TrendingScreen} />
             <Stack.Screen name="Offers" component={OffersScreen} />
             <Stack.Screen name="RecentlyViewed" component={RecentlyViewedScreen} />

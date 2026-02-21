@@ -16,6 +16,17 @@ import { auth } from "@/lib/firebase";
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState("profile");
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setCurrentUser(user);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const [notifications, setNotifications] = useState({
         email: true,
         push: false,
@@ -36,6 +47,8 @@ export default function SettingsPage() {
         { id: "system", label: "System Preferences", icon: Globe },
     ];
 
+    if (loading) return <div className="p-10 flex justify-center"><div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div>;
+
     return (
         <div className="max-w-5xl mx-auto space-y-10 pb-20">
             {/* Header */}
@@ -54,8 +67,8 @@ export default function SettingsPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`w-full flex items-center space-x-3 px-4 py-4 rounded-xl transition-all text-left ${activeTab === tab.id
-                                        ? "bg-black text-white"
-                                        : "bg-white text-gray-500 hover:bg-gray-50"
+                                    ? "bg-black text-white"
+                                    : "bg-white text-gray-500 hover:bg-gray-50"
                                     }`}
                             >
                                 <Icon size={18} />
@@ -70,11 +83,11 @@ export default function SettingsPage() {
                     {activeTab === "profile" && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="flex items-center space-x-6">
-                                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-3xl font-black">
-                                    SP
+                                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-3xl font-black uppercase">
+                                    {currentUser?.email?.substring(0, 2) || "AD"}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold">Snehal Pinjari</h3>
+                                    <h3 className="text-xl font-bold">{currentUser?.displayName || "Admin User"}</h3>
                                     <p className="text-gray-400 text-sm">Super Admin</p>
                                     <button className="mt-2 text-xs font-bold underline">Change Avatar</button>
                                 </div>
@@ -83,11 +96,11 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
                                 <div>
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Full Name</label>
-                                    <input type="text" value="Snehal Pinjari" disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-500" />
+                                    <input type="text" value={currentUser?.displayName || "Admin User"} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-500" />
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Email Address</label>
-                                    <input type="email" value="admin@velora.com" disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-500" />
+                                    <input type="email" value={currentUser?.email || ""} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-500" />
                                 </div>
                             </div>
                         </div>

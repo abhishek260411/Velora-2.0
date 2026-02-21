@@ -19,10 +19,12 @@ const ProductDetailScreen = ({ navigation, route }) => {
         price: '₹12,999',
         tag: 'NEW RELEASE',
         image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=1000',
+        sizes: ['7', '8', '9', '10', '11', '12'],
         description: 'The Velocity 1.0 merges futuristic design with unparalleled athletic performance. Built for the modern nomad who refuses to compromise on style or comfort.'
     };
 
-    const [selectedSize, setSelectedSize] = useState('9');
+    const availableSizes = activeProduct.sizes || ['S', 'M', 'L', 'XL', 'XXL'];
+    const [selectedSize, setSelectedSize] = useState(availableSizes[0]);
     const [alertVisible, setAlertVisible] = useState(false);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isFavorite, setIsFavorite] = useState(activeProduct.isFavorite || false);
@@ -78,7 +80,7 @@ const ProductDetailScreen = ({ navigation, route }) => {
 
                     <View style={styles.titleRow}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.tag}>{activeProduct.tag || 'NEW ARRIVAL'}</Text>
+                            <Text style={styles.tag}>{activeProduct.tag || 'BESTSELLER'}</Text>
                             <Text style={styles.title}>{activeProduct.name}</Text>
                         </View>
                         <Text style={styles.price}>{activeProduct.price}</Text>
@@ -89,9 +91,9 @@ const ProductDetailScreen = ({ navigation, route }) => {
                     </Text>
 
                     {/* Size Selector */}
-                    <Text style={styles.sectionTitle}>SELECT SIZE (UK)</Text>
+                    <Text style={styles.sectionTitle}>SELECT SIZE {activeProduct.category === 'Shoes' ? '(UK)' : ''}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sizeScroll}>
-                        {['7', '8', '9', '10', '11', '12'].map((size) => (
+                        {availableSizes.map((size) => (
                             <TouchableOpacity
                                 key={size}
                                 style={[styles.sizeBox, selectedSize === size && styles.activeSizeBox]}

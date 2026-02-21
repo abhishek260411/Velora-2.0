@@ -15,17 +15,75 @@ import {
 
 export default function ReportsPage() {
     const [timeRange, setTimeRange] = useState("30");
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        totalOrders: 0,
+        revenueData: Array(12).fill(0),
+        categoryData: [] as { name: string; value: number; color: string }[]
+    });
 
-    // Mock Data for Charts
-    const revenueData = [45, 62, 58, 71, 85, 66, 75, 82, 95, 110, 105, 125]; // Represents heights
-    const salesData = [30, 45, 35, 50, 40, 60, 55, 70, 65, 80, 75, 90];
+    React.useEffect(() => {
+        const fetchReportData = async () => {
+            const { collection, getDocs } = await import("firebase/firestore");
+            const { db } = await import("@/lib/firebase");
 
-    const categories = [
-        { name: "Sneakers", value: 45, color: "bg-black" },
-        { name: "Apparel", value: 30, color: "bg-gray-600" },
-        { name: "Accessories", value: 15, color: "bg-gray-400" },
-        { name: "Editorial", value: 10, color: "bg-gray-200" },
-    ];
+            try {
+                const ordersSnap = await getDocs(collection(db, "orders"));
+                let revenue = 0;
+                let orderCount = 0;
+                const monthlyRevenue = Array(12).fill(0);
+                const categoryCounts: Record<string, number> = {};
+
+                ordersSnap.forEach(doc => {
+                    const data = doc.data();
+                    const total = Number(data.total) || 0;
+                    revenue += total;
+                    orderCount++;
+
+                    // Monthly Revenue
+                    const date = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+                    const month = date.getMonth(); // 0-11
+                    monthlyRevenue[month] += total;
+
+                    // Category Distribution
+                    const items = data.items || [];
+                    items.forEach((item: any) => {
+                        // Infer category from item data or default (since we might not store category on order item directly)
+                        // This assumes item might have a category field, otherwise mocks or general bucket
+                        const cat = item.category || "General";
+                        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+                    });
+                });
+
+                // Process Category Data
+                const totalItems = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+                const processedCategories = Object.keys(categoryCounts).map((key, index) => ({
+                    name: key,
+                    value: totalItems ? Math.round((categoryCounts[key] / totalItems) * 100) : 0,
+                    color: index === 0 ? "bg-black" : index === 1 ? "bg-gray-600" : index === 2 ? "bg-gray-400" : "bg-gray-200"
+                })).sort((a, b) => b.value - a.value).slice(0, 4);
+
+                setStats({
+                    totalRevenue: revenue,
+                    totalOrders: orderCount,
+                    revenueData: monthlyRevenue,
+                    categoryData: processedCategories.length > 0 ? processedCategories : [
+                        { name: "General", value: 100, color: "bg-black" }
+                    ]
+                });
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching reports:", error);
+                setLoading(false);
+            }
+        };
+
+        fetchReportData();
+    }, [timeRange]);
+
+    const revenueData = stats.revenueData;
+    const categories = stats.categoryData;
 
     return (
         <div className="space-y-10 pb-20">
@@ -42,10 +100,7 @@ export default function ReportsPage() {
                         onChange={(e) => setTimeRange(e.target.value)}
                         className="bg-white border border-gray-100 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-black transition-all"
                     >
-                        <option value="7">Last 7 Days</option>
-                        <option value="30">Last 30 Days</option>
-                        <option value="90">Last Quarter</option>
-                        <option value="365">Year to Date</option>
+                        <option value="30">Year to Date (2025-26)</option>
                     </select>
                     <button className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm tracking-widest flex items-center hover:bg-gray-900 transition-all">
                         <Download size={16} className="mr-2" />
@@ -64,11 +119,13 @@ export default function ReportsPage() {
                             </div>
                             <div className="flex items-center text-green-400 text-xs font-bold bg-green-400/10 px-2 py-1 rounded-lg">
                                 <ArrowUpRight size={12} className="mr-1" />
-                                +24.5%
+                                Real-time
                             </div>
                         </div>
                         <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Revenue</p>
-                        <h3 className="text-3xl font-black tracking-tight">₹12,45,890</h3>
+                        <h3 className="text-3xl font-black tracking-tight">
+                            {loading ? "..." : `₹${stats.totalRevenue.toLocaleString()}`}
+                        </h3>
                     </div>
                     <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all" />
                 </div>
@@ -78,13 +135,9 @@ export default function ReportsPage() {
                         <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-black group-hover:text-white transition-all">
                             <ShoppingCart size={20} />
                         </div>
-                        <div className="flex items-center text-green-500 text-xs font-bold bg-green-50 px-2 py-1 rounded-lg">
-                            <ArrowUpRight size={12} className="mr-1" />
-                            +12.8%
-                        </div>
                     </div>
                     <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Orders</p>
-                    <h3 className="text-3xl font-black tracking-tight">1,284</h3>
+                    <h3 className="text-3xl font-black tracking-tight">{loading ? "..." : stats.totalOrders}</h3>
                 </div>
 
                 <div className="bg-white border border-gray-100 p-8 rounded-3xl relative overflow-hidden group hover:border-black transition-all">
@@ -92,13 +145,11 @@ export default function ReportsPage() {
                         <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-black group-hover:text-white transition-all">
                             <Users size={20} />
                         </div>
-                        <div className="flex items-center text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
-                            <TrendingDown size={12} className="mr-1" />
-                            -2.1%
-                        </div>
                     </div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Conversion Rate</p>
-                    <h3 className="text-3xl font-black tracking-tight">3.24%</h3>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Avg. Order Value</p>
+                    <h3 className="text-3xl font-black tracking-tight">
+                        {loading ? "..." : `₹${stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders).toLocaleString() : 0}`}
+                    </h3>
                 </div>
             </div>
 
@@ -109,51 +160,43 @@ export default function ReportsPage() {
                     <div className="flex justify-between items-center mb-10">
                         <h3 className="text-xs font-black tracking-widest text-gray-400 uppercase flex items-center">
                             <TrendingUp size={16} className="mr-2 text-black" />
-                            Revenue Statistics
+                            Revenue Statistics (2026)
                         </h3>
-                        <div className="flex items-center space-x-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                            <span className="flex items-center"><span className="w-2 h-2 bg-black rounded-full mr-1"></span> Current</span>
-                            <span className="flex items-center"><span className="w-2 h-2 bg-gray-200 rounded-full mr-1"></span> Projected</span>
-                        </div>
                     </div>
 
                     {/* Custom CSS Bar Chart */}
                     <div className="h-64 relative flex">
-                        {/* Y-Axis Labels */}
-                        <div className="flex flex-col justify-between pr-4 text-right text-[10px] font-bold text-gray-400">
-                            <span>₹125K</span>
-                            <span>₹100K</span>
-                            <span>₹75K</span>
-                            <span>₹50K</span>
-                            <span>₹25K</span>
-                            <span>₹0</span>
-                        </div>
-
                         {/* Chart Area */}
                         <div className="flex-1 relative">
                             {/* Horizontal Grid Lines */}
                             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                                {[0, 1, 2, 3, 4, 5].map((i) => (
+                                {[0, 1, 2, 3, 4].map((i) => (
                                     <div key={i} className="w-full border-t border-gray-100"></div>
                                 ))}
                             </div>
 
                             {/* Bar Chart */}
                             <div className="h-full flex items-end justify-between space-x-2 relative z-10">
-                                {revenueData.map((height, i) => (
-                                    <div key={i} className="flex-1 flex flex-col justify-end group cursor-pointer">
-                                        <div
-                                            className="w-full bg-black rounded-t-lg group-hover:shadow-lg transition-all relative"
-                                            style={{ height: `${(height / 125) * 100}%`, minHeight: '20px' }}
-                                        >
-                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                ₹{(height * 1000).toLocaleString()}
+                                {revenueData.map((revenue, i) => {
+                                    // Scale height relative to max revenue (avoid division by zero)
+                                    const maxRev = Math.max(...revenueData, 10000);
+                                    const heightPercent = (revenue / maxRev) * 100;
+
+                                    return (
+                                        <div key={i} className="flex-1 flex flex-col justify-end group cursor-pointer">
+                                            <div
+                                                className="w-full bg-black rounded-t-lg group-hover:shadow-lg transition-all relative"
+                                                style={{ height: `${heightPercent}%`, minHeight: '4px' }}
+                                            >
+                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                    ₹{revenue.toLocaleString()}
+                                                </div>
                                             </div>
+                                            {/* <div className="h-1 w-full bg-gray-100 mt-2 rounded-full"></div> */}
+                                            <p className="text-center text-[8px] md:text-[10px] text-black font-bold mt-2 uppercase">{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}</p>
                                         </div>
-                                        <div className="h-1 w-full bg-gray-100 mt-2 rounded-full"></div>
-                                        <p className="text-center text-[10px] text-black font-bold mt-2 uppercase">{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}</p>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>

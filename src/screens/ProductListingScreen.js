@@ -22,7 +22,7 @@ const COLUMN_WIDTH = (width - 48) / 2; // 24px padding on sides, 16px gap = (W -
 
 const CATEGORY_DATA = {
     "Shoes": ["Sneakers", "Running", "Formal", "Sandals"],
-    "Men": ["T-Shirts", "Shirts", "Bottoms", "Jackets"],
+    "Men": ["T-Shirt", "Shirts", "Bottoms", "Jacket"],
     "Women": ["Dresses", "Tops", "Skirts", "Activewear"],
     "Accessories": ["Watches", "Bags", "Jewellery", "Eyewear"]
 };
@@ -36,7 +36,7 @@ const ProductListingScreen = ({ navigation, route }) => {
     const categoryName = route?.params?.category || 'Collection';
 
     // Derived chips
-    const chips = ['All', ...(CATEGORY_DATA[categoryName] || ['New', 'Trending', 'Sale'])];
+    const chips = CATEGORY_DATA[categoryName] || ['New', 'Trending', 'Sale'];
 
     useEffect(() => {
         setIsLoading(true);
@@ -50,20 +50,45 @@ const ProductListingScreen = ({ navigation, route }) => {
         return () => unsubscribe();
     }, []);
 
-    // Simple Filter Logic (Client Side for demo smoothness)
+    // Improved Filter Logic
     useEffect(() => {
         let result = allProducts;
-        if (selectedCategory !== 'All') {
-            const searchLower = selectedCategory.toLowerCase();
+
+        // 1. Filter by main category if not 'All' or 'Collection'
+        if (categoryName && categoryName !== 'All' && categoryName !== 'Collection') {
             result = result.filter(p =>
-                (p.category && p.category.toLowerCase() === searchLower) ||
-                (p.tags && p.tags.some(t => t.toLowerCase() === searchLower)) ||
-                (p.name && p.name.toLowerCase().includes(searchLower)) ||
-                (p.brand && p.brand.toLowerCase().includes(searchLower))
+                p.category && p.category.toLowerCase() === categoryName.toLowerCase()
             );
         }
+
+        // 2. Filter by selected sub-category chip
+        if (selectedCategory !== 'All') {
+            const searchLower = selectedCategory.toLowerCase();
+            // Handle common pluralization (e.g., T-Shirts -> T-Shirt)
+            const searchSingular = searchLower.endsWith('s') ? searchLower.slice(0, -1) : searchLower;
+
+            result = result.filter(p => {
+                const subCat = p.subCategory ? p.subCategory.toLowerCase() : '';
+                const name = p.name ? p.name.toLowerCase() : '';
+                const tags = p.tags ? p.tags.map(t => t.toLowerCase()) : [];
+                const tag = p.tag ? p.tag.toLowerCase() : '';
+
+                // Special handling: "Shirts" should not match "T-Shirt"
+                if (selectedCategory === 'Shirts' && (subCat.includes('t-shirt') || name.includes('t-shirt'))) {
+                    return false;
+                }
+
+                return (
+                    subCat.includes(searchSingular) ||
+                    tags.some(t => t.includes(searchSingular)) ||
+                    tag.includes(searchSingular) ||
+                    name.includes(searchSingular) ||
+                    (p.brand && p.brand.toLowerCase().includes(searchSingular))
+                );
+            });
+        }
         setDisplayedProducts(result);
-    }, [selectedCategory, allProducts]);
+    }, [selectedCategory, allProducts, categoryName]);
 
     const renderProduct = ({ item }) => (
         <TouchableOpacity

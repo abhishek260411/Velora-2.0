@@ -57,6 +57,39 @@ export default function DashboardPage() {
             setError("Unable to sync live data");
         });
 
+        // Fetch Stats
+        const fetchStats = async () => {
+            const { getDocs } = await import("firebase/firestore");
+
+            try {
+                // Products
+                const productsSnap = await getDocs(collection(db, "products"));
+
+                // Users
+                const usersSnap = await getDocs(collection(db, "users"));
+
+                // Orders
+                const ordersSnap = await getDocs(collection(db, "orders"));
+                const totalRevenue = ordersSnap.docs.reduce((acc, doc) => {
+                    const d = doc.data();
+                    const val = Number(d.total) || 0;
+                    return acc + val;
+                }, 0);
+
+                setStats(prev => ({
+                    ...prev,
+                    products: productsSnap.size,
+                    users: usersSnap.size,
+                    orders: ordersSnap.size,
+                    revenue: "₹" + totalRevenue.toLocaleString("en-IN")
+                }));
+
+            } catch (e) {
+                console.error("Stats fetch error:", e);
+            }
+        };
+        fetchStats();
+
         return () => unsubscribe();
     }, []);
 

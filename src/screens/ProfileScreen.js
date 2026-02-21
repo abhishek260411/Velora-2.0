@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 const MENU_SECTIONS = [
     {
@@ -41,6 +42,7 @@ const MENU_SECTIONS = [
 ];
 
 const ProfileScreen = ({ navigation }) => {
+    const { userData, logout } = useAuth();
 
     const handleLogout = () => {
         Alert.alert(
@@ -48,7 +50,14 @@ const ProfileScreen = ({ navigation }) => {
             "Are you sure you want to logout?",
             [
                 { text: "Cancel", style: "cancel" },
-                { text: "Logout", style: "destructive", onPress: () => navigation.replace('Login') }
+                {
+                    text: "Logout",
+                    style: "destructive",
+                    onPress: async () => {
+                        await logout();
+                        navigation.replace('Login');
+                    }
+                }
             ]
         );
     };
@@ -81,15 +90,15 @@ const ProfileScreen = ({ navigation }) => {
                 <View style={styles.profileHeader}>
                     <View style={styles.avatarContainer}>
                         <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }}
+                            source={{ uri: userData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }}
                             style={styles.avatar}
                         />
                         <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('EditProfile')}>
                             <Ionicons name="pencil" size={14} color="#fff" />
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.name}>Snehal Pinjari</Text>
-                    <Text style={styles.email}>snehal@example.com</Text>
+                    <Text style={styles.name}>{userData?.displayName || 'Guest User'}</Text>
+                    <Text style={styles.email}>{userData?.email || ''}</Text>
                 </View>
 
                 {/* Menu Sections */}

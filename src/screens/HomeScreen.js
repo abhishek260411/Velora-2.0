@@ -9,23 +9,27 @@ import {
     TouchableOpacity,
     Image,
     Dimensions,
-    Platform
+    Platform,
+    ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
 import { useRewards } from '../context/RewardsContext';
 import { useNotifications } from '../context/NotificationContext';
+import { db } from '../config/firebase';
+import { collection, query, limit, getDocs, where } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
-const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite }) => {
+const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite, product }) => {
     const navigation = useNavigation();
 
     return (
         <TouchableOpacity
             style={styles.productCard}
-            onPress={() => navigation.navigate('ProductDetail', { id })}
+            onPress={() => navigation.navigate('ProductDetail', { product })}
             activeOpacity={0.8}
         >
             <View style={styles.productImageWrap}>
@@ -48,14 +52,36 @@ const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite 
 };
 
 const HomeScreen = ({ navigation }) => {
+    const { userData } = useAuth();
     const { REWARD_CARDS, unlockedCards } = useRewards();
     const { unreadCount } = useNotifications();
 
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [favorites, setFavorites] = useState({});
+    const [trendingProducts, setTrendingProducts] = useState([]);
+    const [loadingTrending, setLoadingTrending] = useState(true);
+
+    const firstName = userData?.displayName?.split(' ')[0] || 'User';
+
+    React.useEffect(() => {
+        fetchTrending();
+    }, []);
+
+    const fetchTrending = async () => {
+        try {
+            const q = query(collection(db, 'products'), limit(10));
+            const snapshot = await getDocs(q);
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTrendingProducts(items);
+        } catch (error) {
+            console.error("Error fetching trending:", error);
+        } finally {
+            setLoadingTrending(false);
+        }
+    };
 
     // Sample Data
-    const categories = ['All', 'Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
+    const categories = ['Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
 
     const handleToggleFavorite = (id) => {
         setFavorites(prev => ({
@@ -79,15 +105,19 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
     );
 
-    const renderProductCard = (id, title, price, image) => (
+    const renderProductCard = (product) => (
         <ProductCard
-            key={id}
-            id={id}
-            title={title}
-            price={price}
-            image={image}
-            isFav={!!favorites[id]}
+            key={product.id}
+            id={product.id}
+            title={product.name}
+            price={`₹${product.price}`}
+            image={product.image}
+            isFav={!!favorites[product.id]}
             onToggleFavorite={handleToggleFavorite}
+            product={{
+                ...product,
+                price: `₹${product.price}`
+            }}
         />
     );
 
@@ -136,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.greeting}>Good Morning,</Text>
-                        <Text style={styles.username}>Snehal</Text>
+                        <Text style={styles.username}>{firstName}</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.iconBtn}
@@ -159,7 +189,6 @@ const HomeScreen = ({ navigation }) => {
                         decelerationRate="fast"
                         snapToInterval={width - 40}
                     >
-                        {renderHeroCard("Summer Collection", "NEW ARRIVALS", "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800")}
                         {renderHeroCard("Urban Streetwear", "TRENDING", "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&q=80&w=800")}
                     </ScrollView>
 
@@ -186,14 +215,18 @@ const HomeScreen = ({ navigation }) => {
                     {/* Section: Trending */}
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Trending Now</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('ProductListing')}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Trending')}>
                             <Text style={styles.seeAll}>See All</Text>
                         </TouchableOpacity>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productsScroll}>
-                        {renderProductCard("AF1", "Nike Air Force 1", "₹8,295", "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400")}
-                        {renderProductCard("HD1", "Essential Hoodie", "₹4,999", "https://images.unsplash.com/photo-1556906781-9a412961d28c?auto=format&fit=crop&q=80&w=400")}
-                        {renderProductCard("WT1", "Classic Watch", "₹12,500", "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&q=80&w=400")}
+                        {loadingTrending ? (
+                            <ActivityIndicator size="small" color="#000" style={{ marginLeft: 20 }} />
+                        ) : trendingProducts.length > 0 ? (
+                            trendingProducts.map(p => renderProductCard(p))
+                        ) : (
+                            <Text style={{ marginLeft: 20, color: '#8E8E93' }}>No products found</Text>
+                        )}
                     </ScrollView>
 
                     {/* Section: Reward Cards */}

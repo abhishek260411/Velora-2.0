@@ -13,20 +13,34 @@ import {
     LogIn
 } from "lucide-react";
 
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
+
+interface ActivityLog {
+    id: string;
+    action: string;
+    user: string;
+    type: "auth" | "create" | "update" | "delete" | "system";
+    details: string;
+    createdAt: Timestamp;
+}
+
 export default function ActivityLogsPage() {
     const [filter, setFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
+    const [logs, setLogs] = useState<ActivityLog[]>([]);
 
-    // Mock Activity Data (Since Firestore implementation for logs wasn't explicitly requested in previous parts)
-    const logData = [
-        { id: 1, action: "Logged In", user: "Snehal Pinjari", time: "2 mins ago", type: "auth", details: "Successful login from 192.168.1.1" },
-        { id: 2, action: "Updated Order Status", user: "Snehal Pinjari", time: "15 mins ago", type: "update", details: "Changed Order #ORD-8921 to 'Shipped'" },
-        { id: 3, action: "Added New Product", user: "Admin", time: "1 hour ago", type: "create", details: "Published 'Velocity 2.0 Sneakers'" },
-        { id: 4, action: "System Backup", user: "System", time: "3 hours ago", type: "system", details: "Daily database snapshot created." },
-        { id: 5, action: "Deleted User", user: "Snehal Pinjari", time: "5 hours ago", type: "delete", details: "Removed inactive user 'test_user_01'" },
-        { id: 6, action: "Updated Hero Banner", user: "Admin", time: "Yesterday", type: "update", details: "Replaced main banner with 'Summer Collection'" },
-        { id: 7, action: "Exported Reports", user: "Snehal Pinjari", time: "Yesterday", type: "system", details: "Downloaded Monthly Revenue Report CSV" },
-    ];
+    React.useEffect(() => {
+        const q = query(collection(db, "activity_logs"), orderBy("createdAt", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const logsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as ActivityLog));
+            setLogs(logsData);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -44,7 +58,19 @@ export default function ActivityLogsPage() {
         if (val !== "") setFilter("all");
     };
 
-    const filteredLogs = logData.filter(log => {
+    const formatTime = (timestamp: Timestamp) => {
+        if (!timestamp) return "";
+        const date = timestamp.toDate();
+        const now = new Date();
+        const diff = (now.getTime() - date.getTime()) / 1000;
+
+        if (diff < 60) return "Just now";
+        if (diff < 3600) return `${Math.floor(diff / 60)} mins ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+        return date.toLocaleDateString();
+    };
+
+    const filteredLogs = logs.filter(log => {
         const matchesFilter = filter === "all" || log.type === filter;
         const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.action.toLowerCase().includes(searchTerm.toLowerCase());
@@ -94,27 +120,30 @@ export default function ActivityLogsPage() {
                 <div className="absolute left-[59px] top-10 bottom-10 w-px bg-gray-100"></div>
 
                 <div className="space-y-8">
-                    {filteredLogs.map((log) => (
-                        <div key={log.id} className="relative flex items-start group">
-                            {/* Icon Marker */}
-                            <div className="relative z-10 w-12 h-12 bg-white border border-gray-100 rounded-full flex items-center justify-center mr-6 group-hover:border-black transition-colors shadow-sm">
-                                {getIcon(log.type)}
-                            </div>
+                    {filteredLogs.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400 text-sm">No activity logs found.</div>
+                    ) : (
+                        filteredLogs.map((log) => (
+                            <div key={log.id} className="relative flex items-start group">
+                                {/* Icon Marker */}
+                                <div className="relative z-10 w-12 h-12 bg-white border border-gray-100 rounded-full flex items-center justify-center mr-6 group-hover:border-black transition-colors shadow-sm">
+                                    {getIcon(log.type)}
+                                </div>
 
-                            {/* Content */}
-                            <div className="flex-1 pt-1">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h4 className="font-bold text-sm">{log.action}</h4>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{log.time}</span>
-                                </div>
-                                <p className="text-sm text-gray-500 mb-2">{log.details}</p>
-                                <div className="flex items-center text-xs font-bold text-gray-400">
-                                    <User size={12} className="mr-1" />
-                                    {log.user}
+                                {/* Content */}
+                                <div className="flex-1 pt-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="font-bold text-sm">{log.action}</h4>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(log.createdAt)}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mb-2">{log.details}</p>
+                                    <div className="flex items-center text-xs font-bold text-gray-400">
+                                        <User size={12} className="mr-1" />
+                                        {log.user}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        )))}
                 </div>
             </div>
 

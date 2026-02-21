@@ -34,7 +34,38 @@ export default function OrderDetailsPage() {
     useEffect(() => {
         const unsubscribe = onSnapshot(doc(db, "orders", id), (docSnap) => {
             if (docSnap.exists()) {
-                setOrder({ id: docSnap.id, ...docSnap.data() });
+                const data = docSnap.data();
+                // Handle DB fields with trailing spaces
+                const rawTotal = data.total ?? data["totalAmount "] ?? data.billing?.total ?? 0;
+                const total = typeof rawTotal === "number"
+                    ? rawTotal
+                    : parseFloat(String(rawTotal).replace(/[^\d.-]/g, "")) || 0;
+
+                const rawItems = Array.isArray(data.items) ? data.items : (Array.isArray(data["items "]) ? data["items "] : []);
+                const items = rawItems.map((item: any) => ({
+                    name: item.name || item["name "] || "Unknown Item",
+                    image: item.image || item.imageUrl || "",
+                    price: item.price ?? item["price "] ?? 0,
+                    quantity: item.quantity ?? item["quantity "] ?? 1,
+                    brand: item.brand || "",
+                }));
+
+                const finalTotal = total > 0 ? total : items.reduce((sum: number, it: any) => sum + ((it.price || 0) * (it.quantity || 1)), 0);
+
+                const mappedOrder = {
+                    id: docSnap.id,
+                    ...data,
+                    customerName: data.customerName || data.userName || data.name || data.displayName || "Customer",
+                    customerEmail: data.customerEmail || data.email || data.userEmail || "—",
+                    customerPhone: data.customerPhone || data.phone || data.userPhone || "+91 XXXXXXXXXX",
+                    total: finalTotal,
+                    items,
+                    status: (data.status || data.orderStatus || "pending").toLowerCase(),
+                    paymentMethod: data.paymentMethod || data.paymentStatus || "Prepaid",
+                    shippingAddress: data.shippingAddress || data.address || null,
+                    createdAt: data.createdAt || data["createAt "] || data.orderDate || null,
+                };
+                setOrder(mappedOrder);
             }
             setLoading(false);
         });
@@ -76,7 +107,7 @@ export default function OrderDetailsPage() {
                     </Link>
                     <div>
                         <h2 className="text-sm font-bold tracking-[0.3em] text-gray-400 mb-1 uppercase">Order Reference</h2>
-                        <h1 className="text-3xl font-black tracking-tight uppercase">#{order.id.slice(0, 12)}</h1>
+                        <h1 className="text-3xl font-black tracking-tight uppercase">#{order.id.slice(0, 8)}</h1>
                     </div>
                 </div>
 
@@ -85,10 +116,10 @@ export default function OrderDetailsPage() {
                         <button
                             key={status}
                             onClick={() => handleStatusUpdate(status)}
-                            disabled={updating || order.status === status}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${order.status === status
-                                    ? "bg-black text-white shadow-lg"
-                                    : "text-gray-400 hover:text-black disabled:opacity-50"
+                            disabled={updating || order.status?.toLowerCase() === status}
+                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${order.status?.toLowerCase() === status
+                                ? "bg-black text-white shadow-lg"
+                                : "text-gray-400 hover:text-black disabled:opacity-50"
                                 }`}
                         >
                             {status}

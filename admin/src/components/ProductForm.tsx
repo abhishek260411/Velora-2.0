@@ -40,8 +40,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
         category: "Shoes",
         subCategory: "Men",
         description: "",
-        isNewArrival: false,
         stock: "",
+        sizes: [] as string[],
     });
 
     useEffect(() => {
@@ -58,8 +58,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
                         category: data.category || "Shoes",
                         subCategory: data.subCategory || "Men", // Handle migration
                         description: data.description || "",
-                        isNewArrival: data.isNewArrival || false,
                         stock: data.stock ? data.stock.toString() : "",
+                        sizes: data.sizes || [],
                     });
                     setImagePreview(data.image || "");
                 }
@@ -261,6 +261,30 @@ export default function ProductForm({ productId }: ProductFormProps) {
                                 required
                             />
                         </div>
+
+                        <div className="col-span-2">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 block">Available Sizes</label>
+                            <div className="flex flex-wrap gap-2">
+                                {["S", "M", "L", "XL", "XXL", "7", "8", "9", "10", "11", "12"].map(size => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => {
+                                            const newSizes = formData.sizes.includes(size)
+                                                ? formData.sizes.filter(s => s !== size)
+                                                : [...formData.sizes, size];
+                                            setFormData({ ...formData, sizes: newSizes });
+                                        }}
+                                        className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${formData.sizes.includes(size)
+                                            ? "bg-black text-white border-black"
+                                            : "bg-white text-gray-400 border-gray-100 hover:border-black hover:text-black"
+                                            }`}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-4">
@@ -273,20 +297,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
                         />
                     </div>
 
-                    <div className="pt-4 flex items-center justify-between border-t border-gray-50">
-                        <div className="flex items-center space-x-4">
-                            <button
-                                type="button"
-                                onClick={() => setFormData({ ...formData, isNewArrival: !formData.isNewArrival })}
-                                className={`flex items-center space-x-2 px-6 py-3 rounded-full border transition-all ${formData.isNewArrival
-                                    ? "bg-black text-white border-black"
-                                    : "bg-white text-gray-400 border-gray-200 hover:border-black hover:text-black"
-                                    }`}
-                            >
-                                <Star size={18} fill={formData.isNewArrival ? "currentColor" : "none"} />
-                                <span className="text-xs font-black uppercase tracking-widest">Mark as New Arrival</span>
-                            </button>
-                        </div>
+                    <div className="pt-4 flex items-center justify-end border-t border-gray-50">
                         <p className="text-[10px] text-gray-400 font-medium">Auto-saving feature not enabled.</p>
                     </div>
                 </div>

@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, X, Save, Eye, Image as ImageIcon, Sparkles, Tag, Plus, Trash2, Percent } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 
 interface Banner {
     id: string;
@@ -31,24 +33,9 @@ interface Promotion {
 
 export default function CMSPage() {
     const [activeTab, setActiveTab] = useState("banners");
-    const [banners, setBanners] = useState<Banner[]>([
-        {
-            id: "1",
-            title: "SUMMER COLLECTION 2024",
-            subtitle: "Discover the latest trends",
-            imageUrl: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1200",
-            ctaText: "SHOP NOW",
-            isActive: true
-        },
-        {
-            id: "2",
-            title: "NEW ARRIVALS",
-            subtitle: "Fresh styles just dropped",
-            imageUrl: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200",
-            ctaText: "EXPLORE",
-            isActive: false
-        }
-    ]);
+    const [banners, setBanners] = useState<Banner[]>([]);
+    const [collections, setCollections] = useState<Collection[]>([]);
+    const [promotions, setPromotions] = useState<Promotion[]>([]);
 
     const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
     const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
@@ -113,43 +100,24 @@ export default function CMSPage() {
         setPreviewImage("");
     }, [editingBanner?.id, editingCollection?.id]);
 
-    // Collections State
-    const [collections, setCollections] = useState<Collection[]>([
-        {
-            id: "1",
-            title: "Summer Essentials",
-            description: "Must-haves for the season",
-            imageUrl: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800",
-            itemCount: 12,
-            isActive: true
-        },
-        {
-            id: "2",
-            title: "Minimalist Workwear",
-            description: "Clean lines for the office",
-            imageUrl: "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?w=800",
-            itemCount: 8,
-            isActive: true
-        }
-    ]);
+    // Fetch Data from Firestore
+    useEffect(() => {
+        const unsubBanners = onSnapshot(query(collection(db, "banners")), (snap) => {
+            setBanners(snap.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+        });
+        const unsubCollections = onSnapshot(query(collection(db, "collections")), (snap) => {
+            setCollections(snap.docs.map(d => ({ id: d.id, ...d.data() } as Collection)));
+        });
+        const unsubPromotions = onSnapshot(query(collection(db, "promotions")), (snap) => {
+            setPromotions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Promotion)));
+        });
 
-    // Promotions State
-    const [promotions, setPromotions] = useState<Promotion[]>([
-        {
-            id: "1",
-            code: "WELCOME20",
-            discount: "20% OFF",
-            description: "First time customer discount",
-            isActive: true
-        },
-        {
-            id: "2",
-            code: "FREESHIP",
-            discount: "Free Shipping",
-            description: "Orders over $100",
-            isActive: false
-        }
-    ]);
+        return () => {
+            unsubBanners();
+            unsubCollections();
+            unsubPromotions();
+        };
+    }, []);
 
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,47 +131,83 @@ export default function CMSPage() {
         }
     };
 
-    const handleSaveBanner = () => {
+    const handleSaveBanner = async () => {
         if (editingBanner) {
             const updated = {
                 ...editingBanner,
                 imageUrl: previewImage || editingBanner.imageUrl
             };
-            setBanners(banners.map(b => b.id === updated.id ? updated : b));
-            setEditingBanner(null);
-            setPreviewImage("");
-            alert("✅ Banner updated successfully!");
+
+            try {
+                // Check if it's a new banner or existing (by checking if ID exists in current list)
+                // Note: The UI currently doesn't support creating new banners, only editing. 
+                // But for robustness:
+                if (banners.some(b => b.id === updated.id)) {
+                    const { id, ...data } = updated;
+                    await updateDoc(doc(db, "banners", id), data);
+                    alert("✅ Banner updated successfully!");
+                } else {
+                    // If we add create functionality later
+                    const { id, ...data } = updated;
+                    await addDoc(collection(db, "banners"), data);
+                    alert("✅ Banner created successfully!");
+                }
+
+                setEditingBanner(null);
+                setPreviewImage("");
+            } catch (e) {
+                console.error("Error saving banner:", e);
+                alert("❌ Failed to save banner.");
+            }
         }
     };
 
-    const toggleBannerStatus = (id: string) => {
-        setBanners(banners.map(b =>
-            b.id === id ? { ...b, isActive: !b.isActive } : b
-        ));
+    const toggleBannerStatus = async (id: string) => {
+        const banner = banners.find(b => b.id === id);
+        if (banner) {
+            try {
+                await updateDoc(doc(db, "banners", id), { isActive: !banner.isActive });
+            } catch (e) {
+                console.error("Error updating banner status:", e);
+            }
+        }
     };
 
     // Collection Handlers
-    const handleSaveCollection = () => {
+    const handleSaveCollection = async () => {
         if (editingCollection) {
             const updated = {
                 ...editingCollection,
                 imageUrl: previewImage || editingCollection.imageUrl
             };
-            if (collections.find(c => c.id === updated.id)) {
-                setCollections(collections.map(c => c.id === updated.id ? updated : c));
-            } else {
-                setCollections([...collections, updated]);
+
+            try {
+                if (collections.some(c => c.id === updated.id)) {
+                    const { id, ...data } = updated;
+                    await updateDoc(doc(db, "collections", id), data);
+                } else {
+                    const { id, ...data } = updated;
+                    await addDoc(collection(db, "collections"), data);
+                }
+                setEditingCollection(null);
+                setPreviewImage("");
+                alert("✅ Collection saved successfully!");
+            } catch (e) {
+                console.error("Error saving collection:", e);
+                alert("❌ Failed to save collection.");
             }
-            setEditingCollection(null);
-            setPreviewImage("");
-            alert("✅ Collection saved successfully!");
         }
     };
 
-    const toggleCollectionStatus = (id: string) => {
-        setCollections(collections.map(c =>
-            c.id === id ? { ...c, isActive: !c.isActive } : c
-        ));
+    const toggleCollectionStatus = async (id: string) => {
+        const col = collections.find(c => c.id === id);
+        if (col) {
+            try {
+                await updateDoc(doc(db, "collections", id), { isActive: !col.isActive });
+            } catch (e) {
+                console.error("Error toggling collection:", e);
+            }
+        }
     };
 
     const deleteCollection = (id: string) => {
@@ -218,32 +222,49 @@ export default function CMSPage() {
         }
     };
 
-    const confirmDelete = () => {
-        if (confirmModal.type === "collection") {
-            setCollections(collections.filter(c => c.id !== confirmModal.id));
-        } else {
-            setPromotions(promotions.filter(p => p.id !== confirmModal.id));
+    const confirmDelete = async () => {
+        try {
+            if (confirmModal.type === "collection") {
+                await deleteDoc(doc(db, "collections", confirmModal.id));
+            } else {
+                await deleteDoc(doc(db, "promotions", confirmModal.id));
+            }
+            setConfirmModal({ ...confirmModal, isOpen: false });
+        } catch (e) {
+            console.error("Error deleting item:", e);
+            alert("❌ Failed to delete item.");
         }
-        setConfirmModal({ ...confirmModal, isOpen: false });
     };
 
     // Promotion Handlers
-    const handleSavePromotion = () => {
+    const handleSavePromotion = async () => {
         if (editingPromotion) {
-            if (promotions.find(p => p.id === editingPromotion.id)) {
-                setPromotions(promotions.map(p => p.id === editingPromotion.id ? editingPromotion : p));
-            } else {
-                setPromotions([...promotions, editingPromotion]);
+            try {
+                if (promotions.some(p => p.id === editingPromotion.id)) {
+                    const { id, ...data } = editingPromotion;
+                    await updateDoc(doc(db, "promotions", id), data);
+                } else {
+                    const { id, ...data } = editingPromotion;
+                    await addDoc(collection(db, "promotions"), data);
+                }
+                setEditingPromotion(null);
+                alert("✅ Promotion saved successfully!");
+            } catch (e) {
+                console.error("Error saving promotion:", e);
+                alert("❌ Failed to save promotion.");
             }
-            setEditingPromotion(null);
-            alert("✅ Promotion saved successfully!");
         }
     };
 
-    const togglePromotionStatus = (id: string) => {
-        setPromotions(promotions.map(p =>
-            p.id === id ? { ...p, isActive: !p.isActive } : p
-        ));
+    const togglePromotionStatus = async (id: string) => {
+        const promo = promotions.find(p => p.id === id);
+        if (promo) {
+            try {
+                await updateDoc(doc(db, "promotions", id), { isActive: !promo.isActive });
+            } catch (e) {
+                console.error("Error toggling promotion:", e);
+            }
+        }
     };
 
     const deletePromotion = (id: string) => {

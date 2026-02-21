@@ -54,8 +54,13 @@ const ProfileScreen = ({ navigation }) => {
                     text: "Logout",
                     style: "destructive",
                     onPress: async () => {
-                        await logout();
-                        navigation.replace('Login');
+                        try {
+                            await logout();
+                            navigation.replace('Login');
+                        } catch (error) {
+                            console.error("Logout failed:", error);
+                            Alert.alert('Logout Error', 'Failed to log out. Please try again.');
+                        }
                     }
                 }
             ]

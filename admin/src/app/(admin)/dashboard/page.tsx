@@ -58,18 +58,19 @@ export default function DashboardPage() {
         });
 
         // Fetch Stats
+        let mounted = true;
         const fetchStats = async () => {
             const { getDocs } = await import("firebase/firestore");
 
             try {
-                // Products
-                const productsSnap = await getDocs(collection(db, "products"));
+                const [productsSnap, usersSnap, ordersSnap] = await Promise.all([
+                    getDocs(collection(db, "products")),
+                    getDocs(collection(db, "users")),
+                    getDocs(collection(db, "orders"))
+                ]);
 
-                // Users
-                const usersSnap = await getDocs(collection(db, "users"));
+                if (!mounted) return;
 
-                // Orders
-                const ordersSnap = await getDocs(collection(db, "orders"));
                 const totalRevenue = ordersSnap.docs.reduce((acc, doc) => {
                     const d = doc.data();
                     const val = Number(d.total) || 0;
@@ -90,7 +91,10 @@ export default function DashboardPage() {
         };
         fetchStats();
 
-        return () => unsubscribe();
+        return () => {
+            mounted = false;
+            unsubscribe();
+        };
     }, []);
 
     const KPI_CARDS = [

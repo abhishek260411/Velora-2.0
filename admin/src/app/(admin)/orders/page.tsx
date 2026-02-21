@@ -109,7 +109,7 @@ function mapDocToOrder(id: string, data: any): Order {
         createdAt,
         itemsCount,
         items,
-        paymentMethod: data.paymentMethod || data.paymentStatus || "", // using paymentStatus as fallback
+        paymentMethod: data.paymentMethod || "", // removed paymentStatus fallback
         shippingAddress: data.shippingAddress || data.address || null,
     };
 }
@@ -121,21 +121,21 @@ export default function OrdersListPage() {
     const [filter, setFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
 
+    const activeUnsubRef = React.useRef<(() => void) | null>(null);
+
     const fetchOrders = () => {
         setLoading(true);
         setError(null);
 
+        if (activeUnsubRef.current) {
+            activeUnsubRef.current();
+            activeUnsubRef.current = null;
+        }
+
         // Use a simple query without composite index requirements
         // We fetch all orders and filter on the client side
         const ordersRef = collection(db, "orders");
-
-        let q;
-        try {
-            q = query(ordersRef, orderBy("createdAt", "desc"));
-        } catch {
-            // Fallback: fetch without ordering if index doesn't exist
-            q = query(ordersRef);
-        }
+        const q = query(ordersRef, orderBy("createdAt", "desc"));
 
         const unsubscribe = onSnapshot(
             q,
@@ -178,17 +178,18 @@ export default function OrdersListPage() {
                         setLoading(false);
                     }
                 );
-                return () => fallbackUnsub();
+                activeUnsubRef.current = fallbackUnsub;
             }
         );
 
+        activeUnsubRef.current = unsubscribe;
         return unsubscribe;
     };
 
     useEffect(() => {
-        const unsubscribe = fetchOrders();
+        fetchOrders();
         return () => {
-            if (typeof unsubscribe === "function") unsubscribe();
+            if (activeUnsubRef.current) activeUnsubRef.current();
         };
     }, []);
 

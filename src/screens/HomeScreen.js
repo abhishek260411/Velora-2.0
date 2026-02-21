@@ -60,6 +60,7 @@ const HomeScreen = ({ navigation }) => {
     const [favorites, setFavorites] = useState({});
     const [trendingProducts, setTrendingProducts] = useState([]);
     const [loadingTrending, setLoadingTrending] = useState(true);
+    const [trendingError, setTrendingError] = useState(null);
 
     const firstName = userData?.displayName?.split(' ')[0] || 'User';
 
@@ -69,19 +70,25 @@ const HomeScreen = ({ navigation }) => {
 
     const fetchTrending = async () => {
         try {
-            const q = query(collection(db, 'products'), limit(10));
+            const q = query(
+                collection(db, 'products'),
+                where('trending', '==', true),
+                limit(10)
+            );
             const snapshot = await getDocs(q);
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setTrendingProducts(items);
         } catch (error) {
             console.error("Error fetching trending:", error);
+            setTrendingProducts([]);
+            setTrendingError(error);
         } finally {
             setLoadingTrending(false);
         }
     };
 
     // Sample Data
-    const categories = ['Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
+    const categories = ['All', 'Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
 
     const handleToggleFavorite = (id) => {
         setFavorites(prev => ({
@@ -111,13 +118,11 @@ const HomeScreen = ({ navigation }) => {
             id={product.id}
             title={product.name}
             price={`₹${product.price}`}
+            displayPrice={`₹${product.price}`}
             image={product.image}
             isFav={!!favorites[product.id]}
             onToggleFavorite={handleToggleFavorite}
-            product={{
-                ...product,
-                price: `₹${product.price}`
-            }}
+            product={product}
         />
     );
 
@@ -222,6 +227,8 @@ const HomeScreen = ({ navigation }) => {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productsScroll}>
                         {loadingTrending ? (
                             <ActivityIndicator size="small" color="#000" style={{ marginLeft: 20 }} />
+                        ) : trendingError ? (
+                            <Text style={{ marginLeft: 20, color: '#FF3B30' }}>Failed to load trending products.</Text>
                         ) : trendingProducts.length > 0 ? (
                             trendingProducts.map(p => renderProductCard(p))
                         ) : (

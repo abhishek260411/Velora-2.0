@@ -16,6 +16,7 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { db } from '../config/firebase';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { BlurView } from 'expo-blur';
+import pluralize from 'pluralize';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2; // 24px padding on sides, 16px gap = (W - 48 - 15) / 2 roughly? Let's use flex gap.
@@ -64,8 +65,8 @@ const ProductListingScreen = ({ navigation, route }) => {
         // 2. Filter by selected sub-category chip
         if (selectedCategory !== 'All') {
             const searchLower = selectedCategory.toLowerCase();
-            // Handle common pluralization (e.g., T-Shirts -> T-Shirt)
-            const searchSingular = searchLower.endsWith('s') ? searchLower.slice(0, -1) : searchLower;
+            // Use pluralize library to get the singular form reliably
+            const searchSingular = pluralize.singular(searchLower);
 
             result = result.filter(p => {
                 const subCat = p.subCategory ? p.subCategory.toLowerCase() : '';

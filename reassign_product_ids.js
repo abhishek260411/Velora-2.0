@@ -36,15 +36,22 @@ const BATCH_220_NAMES = new Set([
     ...ACCESSORIES_PRODUCTS, ...COLLECTION_PRODUCTS
 ].map(p => p.name));
 
+require('dotenv').config();
+
 const firebaseConfig = {
-    apiKey: "AIzaSyDm4c8eTKQ0KCU9qBP7ZEgC_kKuRBNq28U",
-    authDomain: "velora-4a1d9.firebaseapp.com",
-    projectId: "velora-4a1d9",
-    storageBucket: "velora-4a1d9.firebasestorage.app",
-    messagingSenderId: "325400175963",
-    appId: "1:325400175963:web:2534fb0f9610e05cfb267e",
-    measurementId: "G-Y28VRJZ14C"
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID,
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID
 };
+
+if (!firebaseConfig.apiKey) {
+    console.error("Missing required environment variables for Firebase configuration.");
+    process.exit(1);
+}
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -129,11 +136,8 @@ async function reassignIds() {
 
     // Collect old IDs that need deletion (exclude any that are the same as new IDs)
     const newIdSet = new Set(ordered.map(o => o.newId));
-    const toDelete = ordered.filter(o => o.oldId !== o.newId && !newIdSet.has(o.oldId));
-    // Also handle case where old ID matches a different product's new ID
     // We need to be careful: only delete old IDs that are NOT also new IDs
     const oldIdsToDelete = [];
-    const allOldIds = ordered.map(o => o.oldId);
     for (const item of ordered) {
         if (item.oldId !== item.newId) {
             // Only delete if this old ID is not being used as another product's new ID
@@ -168,8 +172,13 @@ async function reassignIds() {
     console.log(`║   📦 Product IDs now:     1 to ${String(ordered.length).padEnd(24)}║`);
     console.log("╚══════════════════════════════════════════════════════════╝");
 
-    console.log("\n🎉 All products now have sequential IDs from 1 to " + ordered.length + "!");
-    process.exit(0);
+    if (deleteFailed > 0) {
+        console.error(`\n⚠️  Process finished but with ${deleteFailed} delete failures (out of ${ordered.length}).`);
+        process.exit(1);
+    } else {
+        console.log("\n🎉 All products now have sequential IDs from 1 to " + ordered.length + "!");
+        process.exit(0);
+    }
 }
 
 reassignIds().catch(err => {

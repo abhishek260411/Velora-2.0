@@ -23,7 +23,7 @@ const ProductDetailScreen = ({ navigation, route }) => {
         description: 'The Velocity 1.0 merges futuristic design with unparalleled athletic performance. Built for the modern nomad who refuses to compromise on style or comfort.'
     };
 
-    const availableSizes = activeProduct.sizes || ['S', 'M', 'L', 'XL', 'XXL'];
+    const availableSizes = (activeProduct.sizes && Array.isArray(activeProduct.sizes) && activeProduct.sizes.length > 0) ? activeProduct.sizes : ['S', 'M', 'L', 'XL', 'XXL'];
     const [selectedSize, setSelectedSize] = useState(availableSizes[0]);
     const [alertVisible, setAlertVisible] = useState(false);
     const [isAddingToCart, setIsAddingToCart] = useState(false);

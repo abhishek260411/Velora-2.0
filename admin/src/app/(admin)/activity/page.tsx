@@ -38,6 +38,9 @@ export default function ActivityLogsPage() {
                 ...doc.data()
             } as ActivityLog));
             setLogs(logsData);
+        }, (error) => {
+            console.error("Error fetching activity logs:", error);
+            setLogs([]);
         });
         return () => unsubscribe();
     }, []);
@@ -65,8 +68,14 @@ export default function ActivityLogsPage() {
         const diff = (now.getTime() - date.getTime()) / 1000;
 
         if (diff < 60) return "Just now";
-        if (diff < 3600) return `${Math.floor(diff / 60)} mins ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+        if (diff < 3600) {
+            const mins = Math.floor(diff / 60);
+            return `${mins} ${mins === 1 ? 'min' : 'mins'} ago`;
+        }
+        if (diff < 86400) {
+            const hours = Math.floor(diff / 3600);
+            return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+        }
         return date.toLocaleDateString();
     };
 

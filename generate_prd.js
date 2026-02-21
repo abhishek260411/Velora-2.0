@@ -16,6 +16,8 @@ const ALL_220_NAMES = new Set([
     ...ACCESSORIES_PRODUCTS, ...COLLECTION_PRODUCTS
 ].map(p => p.name));
 
+require('dotenv').config();
+
 const firebaseConfig = {
     apiKey: "AIzaSyDm4c8eTKQ0KCU9qBP7ZEgC_kKuRBNq28U",
     authDomain: "velora-4a1d9.firebaseapp.com",
@@ -30,14 +32,27 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function generatePRD() {
+    // Fetch categories first to resolve names
+    const catSnapshot = await getDocs(collection(db, "categories"));
+    const categoryMap = {};
+    catSnapshot.forEach(docSnap => {
+        categoryMap[docSnap.id] = docSnap.data().name || docSnap.id;
+    });
+
     const snapshot = await getDocs(collection(db, "products"));
     const allProducts = [];
     snapshot.forEach(docSnap => {
         const d = docSnap.data();
+        const rawCat = d.category || d.categoryId;
+        let resolvedCat = categoryMap[rawCat];
+        if (!resolvedCat && rawCat) {
+            resolvedCat = `[UNRESOLVED: ${rawCat}]`;
+        }
+
         allProducts.push({
             id: docSnap.id,
             name: d.name,
-            category: d.category || d.categoryId || "Uncategorized",
+            category: resolvedCat || "Uncategorized",
             subCategory: d.subCategory || "General",
             price: d.price,
             discountPrice: d.discountPrice || null,
@@ -51,7 +66,15 @@ async function generatePRD() {
             isAvailable: d.isAvailable !== undefined ? d.isAvailable : true,
             rating: d.rating || 0,
             sizes: d.sizes || [],
-            createdAt: d.createdAt ? d.createdAt.toDate().toISOString() : "N/A"
+            createdAt: (() => {
+                if (d.createdAt && typeof d.createdAt.toDate === 'function') return d.createdAt.toDate().toISOString();
+                if (typeof d.createdAt === 'string') {
+                    const parsed = new Date(d.createdAt);
+                    return isNaN(parsed.getTime()) ? "N/A" : parsed.toISOString();
+                }
+                if (typeof d.createdAt === 'number') return new Date(d.createdAt).toISOString();
+                return "N/A";
+            })()
         });
     });
 

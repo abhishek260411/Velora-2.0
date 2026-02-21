@@ -2,25 +2,45 @@
 const { initializeApp } = require("firebase/app");
 const { getFirestore, collection, getDocs } = require("firebase/firestore");
 
+require('dotenv').config();
+
 const firebaseConfig = {
-    apiKey: "AIzaSyDm4c8eTKQ0KCU9qBP7ZEgC_kKuRBNq28U",
-    authDomain: "velora-4a1d9.firebaseapp.com",
-    projectId: "velora-4a1d9",
-    storageBucket: "velora-4a1d9.firebasestorage.app",
-    messagingSenderId: "325400175963",
-    appId: "1:325400175963:web:2534fb0f9610e05cfb267e"
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function run() {
-    const snap = await getDocs(collection(db, "orders"));
-    console.log("COUNT:", snap.size);
-    snap.docs.forEach((d) => {
-        console.log("ID:", d.id);
-        console.log("DATA:", JSON.stringify(d.data(), null, 2));
-    });
-    process.exit(0);
+    try {
+        const snap = await getDocs(collection(db, "orders"));
+        console.log("COUNT:", snap.size);
+        snap.docs.forEach((d) => {
+            const data = d.data();
+            const sanitized = { ...data };
+            delete sanitized.name;
+            delete sanitized.customerName;
+            delete sanitized.address;
+            delete sanitized.shippingAddress;
+            delete sanitized.payment;
+            delete sanitized.cardNumber;
+            delete sanitized.email;
+            delete sanitized.customerEmail;
+            delete sanitized.phone;
+            delete sanitized.customerPhone;
+
+            console.log("ID:", d.id);
+            console.log("DATA:", JSON.stringify(sanitized, null, 2));
+        });
+        process.exit(0);
+    } catch (err) {
+        console.error("Error reading orders:", err);
+        process.exit(1);
+    }
 }
 run();

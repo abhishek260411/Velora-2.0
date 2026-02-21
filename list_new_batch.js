@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function listNewBatch() {
-    console.log("# Phase 2 – New 220 Batch Products (IDs 43-252)\n");
+    console.log("# Phase 2 – New 210 Batch Products (IDs 43-252)\n");
 
     // We can fetch them in parallel for speed
     const promises = [];
@@ -54,4 +54,7 @@ async function listNewBatch() {
     process.exit(0);
 }
 
-listNewBatch().catch(console.error);
+listNewBatch().catch(err => {
+    console.error(err);
+    process.exit(1);
+});

@@ -61,7 +61,7 @@ export default function OrderDetailsPage() {
                     total: finalTotal,
                     items,
                     status: (data.status || data.orderStatus || "pending").toLowerCase(),
-                    paymentMethod: data.paymentMethod || data.paymentStatus || "Prepaid",
+                    paymentMethod: data.paymentMethod ?? "Unknown",
                     shippingAddress: data.shippingAddress || data.address || null,
                     createdAt: data.createdAt || data["createAt "] || data.orderDate || null,
                 };

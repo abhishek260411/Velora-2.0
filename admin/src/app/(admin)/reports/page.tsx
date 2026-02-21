@@ -42,9 +42,17 @@ export default function ReportsPage() {
                     orderCount++;
 
                     // Monthly Revenue
-                    const date = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-                    const month = date.getMonth(); // 0-11
-                    monthlyRevenue[month] += total;
+                    if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+                        const date = data.createdAt.toDate();
+                        if (!isNaN(date.getTime())) {
+                            const month = date.getMonth(); // 0-11
+                            monthlyRevenue[month] += total;
+                        } else {
+                            console.warn(`Invalid date for order ${doc.id}`);
+                        }
+                    } else {
+                        console.warn(`Missing or invalid createdAt for order ${doc.id}`);
+                    }
 
                     // Category Distribution
                     const items = data.items || [];
@@ -80,7 +88,7 @@ export default function ReportsPage() {
         };
 
         fetchReportData();
-    }, [timeRange]);
+    }, []);
 
     const revenueData = stats.revenueData;
     const categories = stats.categoryData;
@@ -160,7 +168,7 @@ export default function ReportsPage() {
                     <div className="flex justify-between items-center mb-10">
                         <h3 className="text-xs font-black tracking-widest text-gray-400 uppercase flex items-center">
                             <TrendingUp size={16} className="mr-2 text-black" />
-                            Revenue Statistics (2026)
+                            Revenue Statistics (2025-26)
                         </h3>
                     </div>
 

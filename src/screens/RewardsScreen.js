@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRewards } from '../context/RewardsContext';
@@ -14,8 +15,7 @@ const RewardsScreen = ({ navigation }) => {
     const handleShareReferral = async () => {
         try {
             await Share.share({
-                message: `Shop on Velora using my code ${referralCode} to get 100 bonus coins! Download now: https://velora.shop`,
-            });
+                message: `Shop on Velora using my code ${referralCode} to get 100 bonus coins! Download now: https://velora.shop` });
         } catch (error) {
             console.error(error);
         }
@@ -138,8 +138,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F7',
-    },
+        borderBottomColor: '#F2F2F7' },
     backButton: { padding: 4 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
     content: { padding: 20 },

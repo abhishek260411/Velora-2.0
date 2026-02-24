@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -7,7 +8,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
     Dimensions,
     Platform,
     ActivityIndicator
@@ -33,7 +33,7 @@ const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite,
             activeOpacity={0.8}
         >
             <View style={styles.productImageWrap}>
-                <Image source={{ uri: image }} style={styles.productImage} />
+                <Image source={{ uri: image }} style={styles.productImage} contentFit="cover" />
                 <TouchableOpacity
                     style={styles.favBtn}
                     onPress={() => onToggleFavorite?.(id)}
@@ -56,7 +56,7 @@ const HomeScreen = ({ navigation }) => {
     const { REWARD_CARDS, unlockedCards } = useRewards();
     const { unreadCount } = useNotifications();
 
-    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedCategory, setSelectedCategory] = useState('Men');
     const [favorites, setFavorites] = useState({});
     const [trendingProducts, setTrendingProducts] = useState([]);
     const [loadingTrending, setLoadingTrending] = useState(true);
@@ -72,7 +72,7 @@ const HomeScreen = ({ navigation }) => {
         try {
             const q = query(
                 collection(db, 'products'),
-                where('trending', '==', true),
+                where('isTrending', '==', true),
                 limit(10)
             );
             const snapshot = await getDocs(q);
@@ -88,7 +88,7 @@ const HomeScreen = ({ navigation }) => {
     };
 
     // Sample Data
-    const categories = ['All', 'Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
+    const categories = ['Men', 'Women', 'Shoes', 'Accessories', 'Sale'];
 
     const handleToggleFavorite = (id) => {
         setFavorites(prev => ({
@@ -99,7 +99,7 @@ const HomeScreen = ({ navigation }) => {
 
     const renderHeroCard = (title, subtitle, image) => (
         <TouchableOpacity style={styles.heroCard} activeOpacity={0.9} onPress={() => navigation.navigate('ProductListing')}>
-            <Image source={{ uri: image }} style={styles.heroImage} />
+            <Image source={{ uri: image }} style={styles.heroImage} contentFit="cover" />
             <View style={styles.heroOverlay} />
             <View style={styles.heroContent}>
                 <Text style={styles.heroSubtitle}>{subtitle}</Text>
@@ -262,10 +262,10 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     safeArea: {
-        flex: 1,
+        flex: 1
     },
     header: {
         flexDirection: 'row',
@@ -273,17 +273,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#fff',
+        backgroundColor: '#fff'
     },
     greeting: {
         fontSize: 14,
         color: '#8E8E93',
-        fontWeight: '500',
+        fontWeight: '500'
     },
     username: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#000',
+        color: '#000'
     },
     iconBtn: {
         width: 44,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         backgroundColor: '#F2F2F7',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     badge: {
         position: 'absolute',
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: '#FF3B30',
         borderWidth: 1,
-        borderColor: '#fff',
+        borderColor: '#fff'
     },
     scrollContent: {
         paddingBottom: 100, // Important for TabBar
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     heroScroll: {
         paddingLeft: 20,
         paddingRight: 10,
-        marginBottom: 30,
+        marginBottom: 30
     },
     heroCard: {
         width: width * 0.85,
@@ -323,21 +323,20 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.15,
         shadowRadius: 20,
-        elevation: 5,
+        elevation: 5
     },
     heroImage: {
         width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
+        height: '100%'
     },
     heroOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.25)',
+        backgroundColor: 'rgba(0,0,0,0.25)'
     },
     heroContent: {
         position: 'absolute',
         bottom: 25,
-        left: 25,
+        left: 25
     },
     heroSubtitle: {
         color: 'rgba(255,255,255,0.9)',
@@ -345,14 +344,14 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1.2,
         marginBottom: 8,
-        textTransform: 'uppercase',
+        textTransform: 'uppercase'
     },
     heroTitle: {
         color: '#fff',
         fontSize: 32,
         fontWeight: '800',
         marginBottom: 16,
-        lineHeight: 36,
+        lineHeight: 36
     },
     shopNowBtn: {
         flexDirection: 'row',
@@ -361,62 +360,62 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 100,
-        alignSelf: 'flex-start',
+        alignSelf: 'flex-start'
     },
     shopNowText: {
         color: '#000',
         fontSize: 13,
         fontWeight: '700',
-        marginRight: 6,
+        marginRight: 6
     },
     catScroll: {
         paddingLeft: 20,
         paddingRight: 10,
-        marginBottom: 35,
+        marginBottom: 35
     },
     catChip: {
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 100,
         backgroundColor: '#F2F2F7',
-        marginRight: 10,
+        marginRight: 10
     },
     activeCatChip: {
-        backgroundColor: '#000',
+        backgroundColor: '#000'
     },
     catText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#000',
+        color: '#000'
     },
     activeCatText: {
-        color: '#fff',
+        color: '#fff'
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        marginBottom: 20,
+        marginBottom: 20
     },
     sectionTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#000',
+        color: '#000'
     },
     seeAll: {
         fontSize: 14,
         color: '#007BFF',
-        fontWeight: '600',
+        fontWeight: '600'
     },
     productsScroll: {
         paddingLeft: 20,
         paddingRight: 10,
-        marginBottom: 35,
+        marginBottom: 35
     },
     productCard: {
         width: 160,
-        marginRight: 20,
+        marginRight: 20
     },
     productImageWrap: {
         width: 160,
@@ -425,12 +424,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#F2F2F7',
         marginBottom: 12,
         overflow: 'hidden',
-        position: 'relative',
+        position: 'relative'
     },
     productImage: {
         width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
+        height: '100%'
     },
     favBtn: {
         position: 'absolute',
@@ -445,23 +443,23 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 4
     },
     productTitle: {
         fontSize: 15,
         fontWeight: '600',
         color: '#1C1C1E',
-        marginBottom: 4,
+        marginBottom: 4
     },
     productPrice: {
         fontSize: 15,
         fontWeight: '700',
-        color: '#8E8E93',
+        color: '#8E8E93'
     },
     rewardScroll: {
         paddingLeft: 20,
         paddingRight: 10,
-        marginBottom: 30,
+        marginBottom: 30
     },
     rewardCardContainer: {
         width: width * 0.75,
@@ -473,48 +471,48 @@ const styles = StyleSheet.create({
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.2,
-        shadowRadius: 12,
+        shadowRadius: 12
     },
     rewardCard: {
         flex: 1,
         padding: 20,
-        justifyContent: 'space-between',
+        justifyContent: 'space-between'
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     cardTitle: {
         color: '#fff',
         fontSize: 12,
         fontWeight: '800',
-        letterSpacing: 1.5,
+        letterSpacing: 1.5
     },
     cardBody: {
-        marginTop: 10,
+        marginTop: 10
     },
     cardNumber: {
         color: 'rgba(255,255,255,0.9)',
         fontSize: 16,
         letterSpacing: 2,
-        fontWeight: '500',
+        fontWeight: '500'
     },
     cardFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        alignItems: 'flex-end'
     },
     discountText: {
         color: '#fff',
         fontSize: 24,
-        fontWeight: '800',
+        fontWeight: '800'
     },
     statusText: {
         color: 'rgba(255,255,255,0.8)',
         fontSize: 10,
         fontWeight: '700',
-        letterSpacing: 1,
+        letterSpacing: 1
     },
     cardOrb: {
         position: 'absolute',
@@ -523,8 +521,8 @@ const styles = StyleSheet.create({
         width: 120,
         height: 120,
         borderRadius: 60,
-        opacity: 0.2,
-    },
+        opacity: 0.2
+    }
 });
 
 export default HomeScreen;

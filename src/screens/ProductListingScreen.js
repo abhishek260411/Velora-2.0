@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -7,8 +8,7 @@ import {
     TouchableOpacity,
     Dimensions,
     FlatList,
-    ActivityIndicator,
-    Image
+    ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
@@ -30,14 +30,15 @@ const CATEGORY_DATA = {
 
 const ProductListingScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
-    const [allProducts, setAllProducts] = useState([]);
-    const [displayedProducts, setDisplayedProducts] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState('All');
-    const [isLoading, setIsLoading] = useState(true);
     const categoryName = route?.params?.category || 'Collection';
 
     // Derived chips
     const chips = CATEGORY_DATA[categoryName] || ['New', 'Trending', 'Sale'];
+
+    const [allProducts, setAllProducts] = useState([]);
+    const [displayedProducts, setDisplayedProducts] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(chips.includes(categoryName) ? categoryName : chips[0]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         setIsLoading(true);
@@ -55,8 +56,8 @@ const ProductListingScreen = ({ navigation, route }) => {
     useEffect(() => {
         let result = allProducts;
 
-        // 1. Filter by main category if not 'All' or 'Collection'
-        if (categoryName && categoryName !== 'All' && categoryName !== 'Collection') {
+        // 1. Filter by main category if not 'All', 'Collection', or 'Sale'
+        if (categoryName && categoryName !== 'All' && categoryName !== 'Collection' && categoryName !== 'Sale') {
             result = result.filter(p =>
                 p.category && p.category.toLowerCase() === categoryName.toLowerCase()
             );
@@ -64,29 +65,37 @@ const ProductListingScreen = ({ navigation, route }) => {
 
         // 2. Filter by selected sub-category chip
         if (selectedCategory !== 'All') {
-            const searchLower = selectedCategory.toLowerCase();
-            // Use pluralize library to get the singular form reliably
-            const searchSingular = pluralize.singular(searchLower);
+            if (selectedCategory === 'New') {
+                result = result.filter(p => p.isNewArrival);
+            } else if (selectedCategory === 'Trending') {
+                result = result.filter(p => p.isTrending);
+            } else if (selectedCategory === 'Sale') {
+                result = result.filter(p => p.isOnSale);
+            } else {
+                const searchLower = selectedCategory.toLowerCase();
+                // Use pluralize library to get the singular form reliably
+                const searchSingular = pluralize.singular(searchLower);
 
-            result = result.filter(p => {
-                const subCat = p.subCategory ? p.subCategory.toLowerCase() : '';
-                const name = p.name ? p.name.toLowerCase() : '';
-                const tags = p.tags ? p.tags.map(t => t.toLowerCase()) : [];
-                const tag = p.tag ? p.tag.toLowerCase() : '';
+                result = result.filter(p => {
+                    const subCat = p.subCategory ? p.subCategory.toLowerCase() : '';
+                    const name = p.name ? p.name.toLowerCase() : '';
+                    const tags = p.tags ? p.tags.map(t => t.toLowerCase()) : [];
+                    const tag = p.tag ? p.tag.toLowerCase() : '';
 
-                // Special handling: "Shirts" should not match "T-Shirt"
-                if (selectedCategory === 'Shirts' && (subCat.includes('t-shirt') || name.includes('t-shirt'))) {
-                    return false;
-                }
+                    // Special handling: "Shirts" should not match "T-Shirt"
+                    if (selectedCategory === 'Shirts' && (subCat.includes('t-shirt') || name.includes('t-shirt'))) {
+                        return false;
+                    }
 
-                return (
-                    subCat.includes(searchSingular) ||
-                    tags.some(t => t.includes(searchSingular)) ||
-                    tag.includes(searchSingular) ||
-                    name.includes(searchSingular) ||
-                    (p.brand && p.brand.toLowerCase().includes(searchSingular))
-                );
-            });
+                    return (
+                        subCat.includes(searchSingular) ||
+                        tags.some(t => t.includes(searchSingular)) ||
+                        tag.includes(searchSingular) ||
+                        name.includes(searchSingular) ||
+                        (p.brand && p.brand.toLowerCase().includes(searchSingular))
+                    );
+                });
+            }
         }
         setDisplayedProducts(result);
     }, [selectedCategory, allProducts, categoryName]);
@@ -98,7 +107,7 @@ const ProductListingScreen = ({ navigation, route }) => {
             activeOpacity={0.9}
         >
             <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <Image source={{ uri: item.image }} style={styles.productImage} contentFit="cover" />
                 <TouchableOpacity style={styles.favButton}>
                     <Ionicons name="heart-outline" size={18} color="#000" />
                 </TouchableOpacity>
@@ -111,7 +120,7 @@ const ProductListingScreen = ({ navigation, route }) => {
             <View style={styles.productMeta}>
                 <Text style={styles.brand}>{item.brand}</Text>
                 <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.price}>{item.price}</Text>
+                <Text style={styles.price}>₹{item.price}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -174,7 +183,7 @@ const ProductListingScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     header: {
         position: 'absolute',
@@ -184,31 +193,31 @@ const styles = StyleSheet.create({
         zIndex: 10,
         backgroundColor: 'rgba(255,255,255,0.85)',
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
+        borderBottomColor: 'rgba(0,0,0,0.05)'
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
-        height: 50,
+        height: 50
     },
     headerTitle: {
         fontSize: 16,
         fontWeight: '700',
         letterSpacing: 1,
-        color: '#000',
+        color: '#000'
     },
     iconBtn: {
         width: 40,
         height: 40,
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     filterScroll: {
         paddingHorizontal: 16,
         paddingBottom: 12,
-        paddingTop: 4,
+        paddingTop: 4
     },
     chip: {
         paddingHorizontal: 16,
@@ -217,33 +226,33 @@ const styles = StyleSheet.create({
         backgroundColor: '#F2F2F7',
         marginRight: 8,
         borderWidth: 1,
-        borderColor: 'transparent',
+        borderColor: 'transparent'
     },
     activeChip: {
         backgroundColor: '#000',
-        borderColor: '#000',
+        borderColor: '#000'
     },
     chipText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#000',
+        color: '#000'
     },
     activeChipText: {
-        color: '#FFF',
+        color: '#FFF'
     },
     loader: {
-        marginTop: 200,
+        marginTop: 200
     },
     listContent: {
         paddingHorizontal: 16,
-        paddingBottom: 40,
+        paddingBottom: 40
     },
     columnWrapper: {
         justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: 24
     },
     productCard: {
-        width: COLUMN_WIDTH,
+        width: COLUMN_WIDTH
     },
     imageContainer: {
         width: '100%',
@@ -252,12 +261,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#F2F2F7',
         overflow: 'hidden',
         marginBottom: 12,
-        position: 'relative',
+        position: 'relative'
     },
     productImage: {
         width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
+        height: '100%'
     },
     favButton: {
         position: 'absolute',
@@ -268,7 +276,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     tagBadge: {
         position: 'absolute',
@@ -277,35 +285,35 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 4,
-        overflow: 'hidden',
+        overflow: 'hidden'
     },
     tagText: {
         fontSize: 10,
         fontWeight: '700',
         color: '#000',
-        textTransform: 'uppercase',
+        textTransform: 'uppercase'
     },
     productMeta: {
-        paddingHorizontal: 4,
+        paddingHorizontal: 4
     },
     brand: {
         fontSize: 11,
         color: '#8E8E93',
         fontWeight: '600',
         marginBottom: 2,
-        textTransform: 'uppercase',
+        textTransform: 'uppercase'
     },
     name: {
         fontSize: 13,
         fontWeight: '600',
         color: '#000',
-        marginBottom: 4,
+        marginBottom: 4
     },
     price: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#000',
-    },
+        color: '#000'
+    }
 });
 
 export default ProductListingScreen;

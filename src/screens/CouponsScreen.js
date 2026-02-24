@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRewards } from '../context/RewardsContext';
@@ -79,8 +80,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         backgroundColor: '#FFF',
         borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F7',
-    },
+        borderBottomColor: '#F2F2F7' },
     backButton: { padding: 4 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
     listContent: { padding: 20 },

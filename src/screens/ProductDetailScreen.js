@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, TextInput, Alert } from 'react-native';
 import { theme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import SwipeButton from '../components/SwipeButton';
 import VeloraImage from '../components/VeloraImage';
 import DynamicIslandAlert from '../components/DynamicIslandAlert';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -14,21 +17,41 @@ const ProductDetailScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { product } = route.params || {};
 
-    const activeProduct = product || {
-        name: 'VELOCITY 1.0 SNEAKERS',
-        price: '₹12,999',
-        tag: 'NEW RELEASE',
-        image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=1000',
-        sizes: ['7', '8', '9', '10', '11', '12'],
-        description: 'The Velocity 1.0 merges futuristic design with unparalleled athletic performance. Built for the modern nomad who refuses to compromise on style or comfort.'
-    };
+    if (!product) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="alert-circle-outline" size={64} color="#C7C7CC" />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: 'bold' }}>PRODUCT NOT FOUND</Text>
+                <TouchableOpacity
+                    style={{ marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#000', borderRadius: 8 }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
-    const availableSizes = (activeProduct.sizes && Array.isArray(activeProduct.sizes) && activeProduct.sizes.length > 0) ? activeProduct.sizes : ['S', 'M', 'L', 'XL', 'XXL'];
+    const activeProduct = product;
+
+    const availableSizes = (activeProduct.sizes && Array.isArray(activeProduct.sizes) && activeProduct.sizes.length > 0)
+        ? activeProduct.sizes
+        : (activeProduct.category === 'Shoes' ? ['7', '8', '9', '10', '11', '12']
+            : activeProduct.category === 'Accessories' ? ['One Size']
+                : ['S', 'M', 'L', 'XL', 'XXL']);
     const [selectedSize, setSelectedSize] = useState(availableSizes[0]);
     const [alertVisible, setAlertVisible] = useState(false);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isFavorite, setIsFavorite] = useState(activeProduct.isFavorite || false);
+
+    // Review State
+    const [reviews, setReviews] = useState([]);
+    const [newReviewText, setNewReviewText] = useState('');
+    const [newReviewRating, setNewReviewRating] = useState(5);
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
     const { addToCart } = useCart();
+    const { user, userData } = useAuth();
 
     useEffect(() => {
         let timeout;
@@ -42,8 +65,64 @@ const ProductDetailScreen = ({ navigation, route }) => {
         return () => clearTimeout(timeout);
     }, [isAddingToCart, addToCart, activeProduct, selectedSize]);
 
+    // Fetch reviews from Firestore
+    useEffect(() => {
+        const fetchReviews = async () => {
+            if (!activeProduct.id) return;
+            try {
+                const q = query(
+                    collection(db, 'reviews'),
+                    where('productId', '==', activeProduct.id),
+                    orderBy('createdAt', 'desc')
+                );
+                const querySnapshot = await getDocs(q);
+                const fetchedReviews = [];
+                querySnapshot.forEach((doc) => {
+                    fetchedReviews.push({ id: doc.id, ...doc.data() });
+                });
+                setReviews(fetchedReviews);
+            } catch (error) {
+                console.error("Error fetching reviews:", error);
+                // The index might not exist, but no error is surfaced to UI, just console log.
+            }
+        };
+        fetchReviews();
+    }, [activeProduct.id]);
+
     const handleAddToCart = () => {
         setIsAddingToCart(true);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!activeProduct.id) {
+            Alert.alert("Error", "Product ID not found.");
+            return;
+        }
+        if (!newReviewText.trim()) {
+            Alert.alert("Error", "Please enter a review.");
+            return;
+        }
+        setIsSubmittingReview(true);
+        try {
+            const newReview = {
+                productId: activeProduct.id,
+                userId: user?.uid || 'anonymous',
+                userName: userData?.displayName || userData?.firstName || (user?.email ? user.email.split('@')[0] : 'Customer'),
+                rating: newReviewRating,
+                text: newReviewText,
+                createdAt: serverTimestamp()
+            };
+            const docRef = await addDoc(collection(db, 'reviews'), newReview);
+            setReviews([{ ...newReview, id: docRef.id, createdAt: { toDate: () => new Date() } }, ...reviews]);
+            setNewReviewText('');
+            setNewReviewRating(5);
+            Alert.alert("Success", "Review added successfully!");
+        } catch (error) {
+            console.error("Error adding review: ", error);
+            Alert.alert("Error", "Failed to add review.");
+        } finally {
+            setIsSubmittingReview(false);
+        }
     };
 
     return (
@@ -91,7 +170,11 @@ const ProductDetailScreen = ({ navigation, route }) => {
                     </Text>
 
                     {/* Size Selector */}
-                    <Text style={styles.sectionTitle}>SELECT SIZE {activeProduct.category === 'Shoes' ? '(UK)' : ''}</Text>
+                    {activeProduct.category === 'Accessories' ? (
+                        <Text style={styles.sectionTitle}>SIZE</Text>
+                    ) : (
+                        <Text style={styles.sectionTitle}>SELECT SIZE {activeProduct.category === 'Shoes' ? '(UK)' : ''}</Text>
+                    )}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sizeScroll}>
                         {availableSizes.map((size) => (
                             <TouchableOpacity
@@ -104,34 +187,76 @@ const ProductDetailScreen = ({ navigation, route }) => {
                         ))}
                     </ScrollView>
 
+                    {/* Add Review Form */}
+                    <View style={styles.addReviewSection}>
+                        <Text style={styles.sectionTitle}>WRITE A REVIEW</Text>
+                        <View style={styles.ratingSelector}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity key={star} onPress={() => setNewReviewRating(star)}>
+                                    <Ionicons
+                                        name={star <= newReviewRating ? "star" : "star-outline"}
+                                        size={28}
+                                        color={star <= newReviewRating ? "#FFD700" : "#E5E5EA"}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TextInput
+                            style={styles.reviewInput}
+                            placeholder="What do you think about this product?"
+                            value={newReviewText}
+                            onChangeText={setNewReviewText}
+                            multiline
+                            numberOfLines={3}
+                        />
+                        <TouchableOpacity
+                            style={styles.submitReviewBtn}
+                            onPress={handleSubmitReview}
+                            disabled={isSubmittingReview}
+                        >
+                            <Text style={styles.submitReviewText}>
+                                {isSubmittingReview ? 'Submitting...' : 'SUBMIT REVIEW'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* Reviews Preview */}
                     <View style={styles.reviewSection}>
                         <View style={styles.reviewHeader}>
-                            <Text style={styles.sectionTitle}>REVIEWS (128)</Text>
+                            <Text style={styles.sectionTitle}>REVIEWS ({reviews.length})</Text>
                             <View style={styles.ratingBadge}>
                                 <Ionicons name="star" size={12} color="#FFF" />
-                                <Text style={styles.ratingText}>4.8</Text>
+                                <Text style={styles.ratingText}>
+                                    {reviews.length > 0 ? (reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length).toFixed(1) : "0.0"}
+                                </Text>
                             </View>
                         </View>
 
-                        {/* Sample Review */}
-                        <View style={styles.reviewCard}>
-                            <View style={styles.reviewUser}>
-                                <View style={styles.avatarPlaceholder}>
-                                    <Text style={styles.avatarText}>A</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.reviewerName}>Alex M.</Text>
-                                    <View style={{ flexDirection: 'row' }}>
-                                        {[1, 2, 3, 4, 5].map(i => <Ionicons key={i} name="star" size={10} color="#FFD700" />)}
+                        {reviews.length === 0 ? (
+                            <Text style={styles.noReviewsText}>No reviews yet. Be the first to review!</Text>
+                        ) : (
+                            reviews.map(review => (
+                                <View key={review.id || Math.random().toString()} style={styles.reviewCard}>
+                                    <View style={styles.reviewUser}>
+                                        <View style={styles.avatarPlaceholder}>
+                                            <Text style={styles.avatarText}>{(review.userName || 'C').charAt(0).toUpperCase()}</Text>
+                                        </View>
+                                        <View>
+                                            <Text style={styles.reviewerName}>{review.userName || 'Customer'}</Text>
+                                            <View style={{ flexDirection: 'row', marginTop: 2 }}>
+                                                {[1, 2, 3, 4, 5].map(i => (
+                                                    <Ionicons key={i} name={i <= review.rating ? "star" : "star-outline"} size={12} color="#FFD700" />
+                                                ))}
+                                            </View>
+                                        </View>
+                                        <Text style={styles.reviewDate}>
+                                            {review.createdAt && review.createdAt.toDate ? review.createdAt.toDate().toLocaleDateString() : 'Just now'}
+                                        </Text>
                                     </View>
+                                    <Text style={styles.reviewText}>{review.text}</Text>
                                 </View>
-                                <Text style={styles.reviewDate}>2d ago</Text>
-                            </View>
-                            <Text style={styles.reviewText}>
-                                The design is absolutely stunning. Fits perfectly and very comfortable for daily wear.
-                            </Text>
-                        </View>
+                            ))
+                        )}
                     </View>
 
                     <View style={{ height: 100 }} />
@@ -180,7 +305,6 @@ const styles = StyleSheet.create({
     heroImage: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     headerActions: {
         position: 'absolute',
@@ -265,8 +389,9 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     sizeBox: {
-        width: 50,
+        minWidth: 50,
         height: 50,
+        paddingHorizontal: 15,
         borderRadius: 25,
         borderWidth: 1,
         borderColor: '#E5E5EA',
@@ -285,6 +410,45 @@ const styles = StyleSheet.create({
     },
     activeSizeText: {
         color: '#FFF',
+    },
+    addReviewSection: {
+        marginBottom: 32,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F2F2F7',
+    },
+    ratingSelector: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        gap: 12,
+    },
+    reviewInput: {
+        backgroundColor: '#F2F2F7',
+        borderRadius: 16,
+        padding: 16,
+        fontSize: 14,
+        minHeight: 100,
+        textAlignVertical: 'top',
+        marginBottom: 16,
+    },
+    submitReviewBtn: {
+        backgroundColor: '#000',
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    submitReviewText: {
+        color: '#FFF',
+        fontWeight: '700',
+        fontSize: 14,
+        letterSpacing: 1,
+    },
+    noReviewsText: {
+        color: '#8E8E93',
+        fontSize: 14,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        paddingVertical: 20,
     },
     reviewSection: {
         marginBottom: 20,
@@ -313,6 +477,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F2F2F7',
         borderRadius: 16,
         padding: 16,
+        marginBottom: 12,
     },
     reviewUser: {
         flexDirection: 'row',

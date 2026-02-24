@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -22,14 +23,22 @@ const ReturnRefundScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { order } = route.params || {};
 
-    // Mock item if no order passed
-    const itemToReturn = order?.items?.[0] || {
-        name: 'Velocity 1.0 Sneakers',
-        brand: 'VELORA ORIGINALS',
-        size: 'UK 9',
-        price: '₹12,999',
-        image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200'
-    };
+    const itemToReturn = order?.items?.[0] || null;
+
+    if (!itemToReturn) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="alert-circle-outline" size={64} color="#C7C7CC" />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: 'bold' }}>NO ITEM FOUND</Text>
+                <TouchableOpacity
+                    style={[styles.submitBtn, { marginTop: 20, paddingHorizontal: 30 }]}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={styles.submitText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     const [selectedReason, setSelectedReason] = useState('');
     const [selectedMethod, setSelectedMethod] = useState('');
@@ -65,7 +74,7 @@ const ReturnRefundScreen = ({ navigation, route }) => {
                 {/* Item Card */}
                 <Text style={styles.sectionTitle}>ITEM TO RETURN</Text>
                 <View style={styles.itemCard}>
-                    <Image source={{ uri: itemToReturn.image }} style={styles.itemImage} />
+                    <Image source={{ uri: itemToReturn.image }} style={styles.itemImage} contentFit="cover" />
                     <View style={styles.itemInfo}>
                         <Text style={styles.brand}>{itemToReturn.brand}</Text>
                         <Text style={styles.name}>{itemToReturn.name}</Text>
@@ -145,7 +154,7 @@ const ReturnRefundScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F7',
+        backgroundColor: '#F2F2F7'
     },
     header: {
         flexDirection: 'row',
@@ -154,16 +163,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 15,
         paddingTop: 10,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#000',
+        color: '#000'
     },
     content: {
         padding: 20,
-        paddingBottom: 120,
+        paddingBottom: 120
     },
     sectionTitle: {
         fontSize: 13,
@@ -178,13 +187,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         padding: 15,
         borderRadius: 12,
-        marginBottom: 20,
+        marginBottom: 20
     },
     itemImage: {
         width: 60,
         height: 60,
         borderRadius: 8,
-        backgroundColor: '#F2F2F7'
+        backgroundColor: '#F2F2F7',
     },
     itemInfo: {
         marginLeft: 15,
@@ -209,7 +218,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         paddingVertical: 5,
         borderRadius: 12,
-        marginBottom: 20,
+        marginBottom: 20
     },
     optionRow: {
         flexDirection: 'row',

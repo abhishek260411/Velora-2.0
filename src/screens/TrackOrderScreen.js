@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -7,21 +8,24 @@ const TrackOrderScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { order } = route.params || {};
 
-    // Mock data if no order passed
-    const orderData = order || {
-        id: 'VL-2026-888',
-        status: 'Shipped',
-        estimatedDelivery: 'Feb 14, 2026',
-        trackingNumber: 'TRK-9988776655',
-        courier: 'FedEx Express',
-        timeline: [
-            { title: 'Order Placed', date: 'Feb 10, 10:30 AM', completed: true, location: 'Mumbai, IN' },
-            { title: 'Order Confirmed', date: 'Feb 10, 11:15 AM', completed: true, location: 'Mumbai, IN' },
-            { title: 'Shipped', date: 'Feb 11, 09:00 AM', completed: true, location: 'Bhiwandi Hub' },
-            { title: 'In Transit', date: 'Feb 12, 02:30 PM', completed: false, location: 'Pune Logistics Center' },
-            { title: 'Out for Delivery', date: 'Pending', completed: false, location: '-' },
-            { title: 'Delivered', date: 'Pending', completed: false, location: '-' },
-        ]
+    // Fallback data if order is missing properties
+    const defaultTimeline = [
+        { title: 'Order Placed', date: 'Feb 10, 10:30 AM', completed: true, location: 'Mumbai, IN' },
+        { title: 'Order Confirmed', date: 'Feb 10, 11:15 AM', completed: true, location: 'Mumbai, IN' },
+        { title: 'Shipped', date: 'Feb 11, 09:00 AM', completed: true, location: 'Bhiwandi Hub' },
+        { title: 'In Transit', date: 'Feb 12, 02:30 PM', completed: false, location: 'Pune Logistics Center' },
+        { title: 'Out for Delivery', date: 'Pending', completed: false, location: '-' },
+        { title: 'Delivered', date: 'Pending', completed: false, location: '-' },
+    ];
+
+    const orderData = {
+        ...order,
+        id: order?.id || 'VL-2026-888',
+        status: order?.status || 'Shipped',
+        estimatedDelivery: order?.estimatedDelivery || 'Feb 14, 2026',
+        trackingNumber: order?.trackingNumber || 'TRK-9988776655',
+        courier: order?.courier || 'FedEx Express',
+        timeline: order?.timeline || defaultTimeline
     };
 
     return (
@@ -46,7 +50,7 @@ const TrackOrderScreen = ({ navigation, route }) => {
                 <View style={styles.card}>
                     <View style={styles.row}>
                         <Text style={styles.label}>Order ID</Text>
-                        <Text style={styles.value}>#{orderData.id}</Text>
+                        <Text style={styles.value}>#{orderData.id ? orderData.id.slice(0, 8).toUpperCase() : 'UNKNOWN'}</Text>
                     </View>
                     <View style={styles.divider} />
                     <View style={styles.row}>
@@ -110,7 +114,7 @@ const TrackOrderScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F7',
+        backgroundColor: '#F2F2F7'
     },
     header: {
         flexDirection: 'row',
@@ -119,15 +123,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 15,
         paddingTop: 10,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#000',
+        color: '#000'
     },
     content: {
-        paddingBottom: 40,
+        paddingBottom: 40
     },
     mapPlaceholder: {
         height: 200,
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
-        elevation: 2,
+        elevation: 2
     },
     row: {
         flexDirection: 'row',
@@ -175,7 +179,7 @@ const styles = StyleSheet.create({
         marginVertical: 12
     },
     timelineSection: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 20
     },
     sectionTitle: {
         fontSize: 16,
@@ -186,22 +190,22 @@ const styles = StyleSheet.create({
     timelineContainer: {
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
-        padding: 20,
+        padding: 20
     },
     timelineItem: {
         flexDirection: 'row',
-        minHeight: 60,
+        minHeight: 60
     },
     leftColumn: {
         alignItems: 'center',
         marginRight: 15,
-        width: 20,
+        width: 20
     },
     dot: {
         width: 12,
         height: 12,
         borderRadius: 6,
-        zIndex: 1,
+        zIndex: 1
     },
     line: {
         width: 2,

@@ -13,27 +13,7 @@ import { collection, query, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase'; // Ensure this path is correct
 import ProductCardHorizontal from '../components/ProductCardHorizontal';
 
-// Mock data for fallback
-const MOCK_WISHLIST = [
-    {
-        id: '1',
-        name: 'Velocity 1.0 Sneakers',
-        brand: 'VELORA ORIGINALS',
-        price: '129.99',
-        image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=600',
-        rating: 4.5,
-        reviews: 120
-    },
-    {
-        id: '2',
-        name: 'Oversized Editorial Hoodie',
-        brand: 'VELORA EDITORIAL',
-        price: '84.99',
-        image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=600',
-        rating: 4.8,
-        reviews: 85
-    }
-];
+
 
 const WishlistScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
@@ -45,9 +25,8 @@ const WishlistScreen = ({ navigation }) => {
         const fetchWishlist = async () => {
             setLoading(true);
             try {
-                // Using Mock data to ensure it looks good immediately for the user
                 timeout = setTimeout(() => {
-                    setWishlist(MOCK_WISHLIST);
+                    setWishlist([]);
                     setLoading(false);
                 }, 500);
             } catch (error) {
@@ -89,7 +68,7 @@ const WishlistScreen = ({ navigation }) => {
                     </View>
                     <Text style={styles.emptyText}>Your wishlist is empty</Text>
                     <Text style={styles.emptySub}>Save items you want to buy later</Text>
-                    <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Home')}>
+                    <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('HomeTab')}>
                         <Text style={styles.shopBtnText}>Start Shopping</Text>
                     </TouchableOpacity>
                 </View>

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
     View,
@@ -5,7 +6,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
     TextInput,
     Alert
 } from 'react-native';
@@ -15,7 +15,10 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import GlassCard from '../components/GlassCard';
 import { useCart } from '../context/CartContext';
 import { useRewards } from '../context/RewardsContext';
+import { useAuth } from '../context/AuthContext';
 import VeloraButton from '../components/VeloraButton';
+import { db } from '../config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const ADDRESSES = [
     {
@@ -38,8 +41,9 @@ const ADDRESSES = [
 
 const CheckoutScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
-    const { cartItems } = useCart();
+    const { cartItems, clearCart } = useCart();
     const { calculateDiscount, REWARD_CARDS, selectedCard, addSpending } = useRewards();
+    const { userData } = useAuth();
 
     const [selectedAddress, setSelectedAddress] = useState('1');
     const [selectedPayment, setSelectedPayment] = useState('upi');
@@ -119,10 +123,48 @@ const CheckoutScreen = ({ navigation }) => {
         }
 
         try {
+            // Find selected address obj
+            const selectedAddressObj = ADDRESSES.find(a => a.id === selectedAddress) || ADDRESSES[0];
+
+            // Build order items
+            const orderItems = cartItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: item.priceNum,
+                quantity: item.quantity,
+                image: item.image,
+                brand: item.brand || 'Velora',
+                size: item.size
+            }));
+
+            // Create Order Document
+            const newOrder = {
+                userId: userData?.uid || 'guest',
+                customerName: userData?.displayName || selectedAddressObj.name,
+                customerEmail: userData?.email || '',
+                customerPhone: selectedAddressObj.phone,
+                shippingAddress: selectedAddressObj.address,
+                items: orderItems,
+                itemsCount: orderItems.reduce((sum, i) => sum + i.quantity, 0),
+                total,
+                subtotal,
+                shipping,
+                discount,
+                paymentMethod: selectedPayment,
+                status: 'pending',
+                createdAt: serverTimestamp() };
+
+            await addDoc(collection(db, 'orders'), newOrder);
+
             // Add spending to rewards
             await addSpending(total);
+
+            // Clear the cart
+            clearCart();
+
             navigation.navigate('OrderSuccess');
         } catch (error) {
+            console.error('Order creation error:', error);
             Alert.alert('Payment Failed', error.message || 'Something went wrong while processing your order.');
         }
     };
@@ -319,17 +361,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#FFF',
-    },
+        backgroundColor: '#FFF' },
     backBtn: {
         width: 40,
-        justifyContent: 'center',
-    },
+        justifyContent: 'center' },
     headerTitle: {
         fontSize: 17,
         fontWeight: '600',
-        color: '#000',
-    },
+        color: '#000' },
     scrollContent: {
         paddingTop: 20,
         paddingBottom: 120, // space for footer
@@ -340,104 +379,85 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         marginLeft: 16,
         marginBottom: 8,
-        textTransform: 'uppercase',
-    },
+        textTransform: 'uppercase' },
     groupContainer: {
         backgroundColor: '#FFF',
         borderRadius: 10,
         marginHorizontal: 16,
         marginBottom: 24,
-        overflow: 'hidden',
-    },
+        overflow: 'hidden' },
     rowItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 16,
-        backgroundColor: '#FFF',
-    },
+        backgroundColor: '#FFF' },
     separator: {
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#C6C6C8',
-    },
+        borderBottomColor: '#C6C6C8' },
     addrHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 4,
-    },
+        marginBottom: 4 },
     addrName: {
         fontSize: 16,
         fontWeight: '600',
         color: '#000',
-        marginRight: 8,
-    },
+        marginRight: 8 },
     tag: {
         backgroundColor: '#E5E5EA',
         paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 4,
-    },
+        borderRadius: 4 },
     tagText: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#000',
-    },
+        color: '#000' },
     addrText: {
         fontSize: 14,
         color: '#3C3C43',
-        marginTop: 2,
-    },
+        marginTop: 2 },
     actionText: {
         fontSize: 16,
-        color: '#007BFF',
-    },
+        color: '#007BFF' },
     paymentRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-    },
+        alignItems: 'center' },
     paymentText: {
         fontSize: 16,
         marginLeft: 12,
-        color: '#000',
-    },
+        color: '#000' },
     radioCircle: {
         width: 22,
         height: 22,
         borderRadius: 11,
         borderWidth: 1.5,
-        borderColor: '#C6C6C8',
-    },
+        borderColor: '#C6C6C8' },
     expandedInput: {
         paddingHorizontal: 16,
         paddingBottom: 16,
-        backgroundColor: '#FFF',
-    },
+        backgroundColor: '#FFF' },
     inputField: {
         backgroundColor: '#F2F2F7',
         borderRadius: 8,
         paddingHorizontal: 12,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#000',
-    },
+        color: '#000' },
     summaryLabel: {
         fontSize: 16,
-        color: '#3C3C43',
-    },
+        color: '#3C3C43' },
     summaryValue: {
         fontSize: 16,
-        color: '#000',
-    },
+        color: '#000' },
     totalLabel: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000',
-    },
+        color: '#000' },
     totalValue: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000',
-    },
+        color: '#000' },
     rewardBanner: {
         marginHorizontal: 16,
         marginBottom: 24,
@@ -450,17 +470,14 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
-        elevation: 4,
-    },
+        elevation: 4 },
     rewardTitle: {
         color: '#FFF',
         fontSize: 16,
-        fontWeight: 'bold',
-    },
+        fontWeight: 'bold' },
     rewardSubtitle: {
         color: 'rgba(255,255,255,0.8)',
-        fontSize: 13,
-    },
+        fontSize: 13 },
     footer: {
         position: 'absolute',
         bottom: 0,
@@ -470,8 +487,6 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingHorizontal: 16,
         borderTopWidth: 1,
-        borderTopColor: '#C6C6C8',
-    },
-});
+        borderTopColor: '#C6C6C8' } });
 
 export default CheckoutScreen;

@@ -237,21 +237,11 @@ export default function DashboardPage() {
                                     </tr>
                                 ))
                             ) : (
-                                // Mock fallback rows for empty Firestore
-                                [1, 2, 3].map((_, i) => (
-                                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-8 py-6 font-bold text-sm">#ORD-90{i}22</td>
-                                        <td className="px-8 py-6 text-sm">Snehal Pinjari</td>
-                                        <td className="px-8 py-6 text-sm text-gray-500">Jan {23 - i}, 2026</td>
-                                        <td className="px-8 py-6 font-bold text-sm">₹{12000 + (i * 1500)}</td>
-                                        <td className="px-8 py-6">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${i === 0 ? "bg-black text-white" : "border border-gray-200 text-gray-400"
-                                                }`}>
-                                                {i === 0 ? "PAID" : "PENDING"}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-10 text-center text-sm text-gray-400 font-medium">
+                                        No recent orders
+                                    </td>
+                                </tr>
                             )}
                         </tbody>
                     </table>

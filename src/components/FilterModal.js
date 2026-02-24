@@ -14,10 +14,10 @@ const FilterModal = ({ visible, onClose, onApply, initialFilters }) => {
     const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     const colors = ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FFA500', '#800080'];
     const prices = [
-        { label: 'Under $50', value: '0-50' },
-        { label: '$50 - $100', value: '50-100' },
-        { label: '$100 - $200', value: '100-200' },
-        { label: 'Over $200', value: '200' + '+' },
+        { label: 'Under ₹50', value: '0-50' },
+        { label: '₹50 - ₹100', value: '50-100' },
+        { label: '₹100 - ₹200', value: '100-200' },
+        { label: 'Over ₹200', value: '200' + '+' },
     ];
 
     const toggleSelection = (item, list, setList) => {

@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const ProductCardHorizontal = ({ product, onPress }) => {
@@ -10,9 +11,9 @@ const ProductCardHorizontal = ({ product, onPress }) => {
                 <Text style={styles.brand} numberOfLines={1}>{product.brand}</Text>
                 <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
                 <View style={styles.priceRow}>
-                    <Text style={styles.price}>${product.price}</Text>
+                    <Text style={styles.price}>₹{product.price}</Text>
                     {product.originalPrice && (
-                        <Text style={styles.originalPrice}>${product.originalPrice}</Text>
+                        <Text style={styles.originalPrice}>₹{product.originalPrice}</Text>
                     )}
                 </View>
                 <View style={styles.ratingRow}>
@@ -42,38 +43,31 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 8,
-        backgroundColor: '#f0f0f0',
-    },
+        backgroundColor: '#f0f0f0' },
     infoContainer: {
         flex: 1,
         marginLeft: 15,
-        justifyContent: 'center',
-    },
+        justifyContent: 'center' },
     brand: {
         fontSize: 12,
         color: '#8E8E93',
-        marginBottom: 2,
-    },
+        marginBottom: 2 },
     name: {
         fontSize: 14,
         fontWeight: '600',
-        marginBottom: 4,
-    },
+        marginBottom: 4 },
     priceRow: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        gap: 8,
-    },
+        gap: 8 },
     price: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#000',
-    },
+        color: '#000' },
     originalPrice: {
         fontSize: 12,
         color: '#8E8E93',
-        textDecorationLine: 'line-through',
-    },
+        textDecorationLine: 'line-through' },
     ratingRow: {
         flexDirection: 'row',
         alignItems: 'center',

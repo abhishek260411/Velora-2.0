@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { theme } from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -57,6 +58,8 @@ const VeloraImage = ({ source, style, ...props }) => {
             <Image
                 source={source}
                 style={[StyleSheet.absoluteFill, styles.image]}
+                contentFit="cover"
+                transition={200}
                 onError={handleError}
                 onLoadEnd={handleLoadEnd}
                 {...props}
@@ -93,7 +96,6 @@ const styles = StyleSheet.create({
     image: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,

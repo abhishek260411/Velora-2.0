@@ -131,10 +131,10 @@ export const RewardsProvider = ({ children }) => {
             setPointsHistory(prev => [historyItem, ...prev]);
 
             const rewardsRef = doc(db, 'userRewards', user.uid);
-            await updateDoc(rewardsRef, {
+            await setDoc(rewardsRef, {
                 points: nextPoints,
                 pointsHistory: arrayUnion(historyItem)
-            });
+            }, { merge: true });
         } catch (error) {
             console.error('Error adding points:', error);
         }
@@ -161,11 +161,11 @@ export const RewardsProvider = ({ children }) => {
                 return newTotal >= REWARD_CARDS[tier].requirement;
             });
 
-            await updateDoc(rewardsRef, {
+            await setDoc(rewardsRef, {
                 totalSpent: newTotal,
                 unlockedCards: newUnlocked,
                 lastUpdated: serverTimestamp()
-            });
+            }, { merge: true });
 
             // Award points for spending (1 point for every ₹100)
             const ptsEarned = Math.floor(amount / 100);
@@ -186,7 +186,7 @@ export const RewardsProvider = ({ children }) => {
             if (!user) return false;
             setSelectedCard(tier);
             const rewardsRef = doc(db, 'userRewards', user.uid);
-            await updateDoc(rewardsRef, { selectedCard: tier, lastUpdated: serverTimestamp() });
+            await setDoc(rewardsRef, { selectedCard: tier, lastUpdated: serverTimestamp() }, { merge: true });
             return true;
         } catch (error) {
             console.error('Error selecting card:', error);
@@ -201,7 +201,7 @@ export const RewardsProvider = ({ children }) => {
             if (!user) return;
             setSelectedCard(null);
             const rewardsRef = doc(db, 'userRewards', user.uid);
-            await updateDoc(rewardsRef, { selectedCard: null, lastUpdated: serverTimestamp() });
+            await setDoc(rewardsRef, { selectedCard: null, lastUpdated: serverTimestamp() }, { merge: true });
         } catch (error) {
             console.error('Error deselecting card:', error);
         }

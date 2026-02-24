@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
@@ -55,7 +56,7 @@ const BrandCollectionScreen = ({ navigation, route }) => {
                     ListHeaderComponent={
                         brandLogo ? (
                             <View style={styles.brandHeader}>
-                                <Image source={{ uri: brandLogo }} style={styles.brandLogo} resizeMode="contain" />
+                                <Image source={{ uri: brandLogo }} style={styles.brandLogo} contentFit="contain" />
                                 <Text style={styles.brandDesc}>Explore the latest collection from {brandName}.</Text>
                             </View>
                         ) : null
@@ -83,7 +84,7 @@ const BrandCollectionScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     header: {
         flexDirection: 'row',
@@ -94,43 +95,43 @@ const styles = StyleSheet.create({
         paddingTop: 10,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 0.5,
-        borderBottomColor: '#F2F2F7',
+        borderBottomColor: '#F2F2F7'
     },
     backBtn: {
-        padding: 5,
+        padding: 5
     },
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#000',
+        color: '#000'
     },
     listContent: {
-        padding: 20,
+        padding: 20
     },
     brandHeader: {
         alignItems: 'center',
         marginBottom: 20,
         paddingBottom: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F7',
+        borderBottomColor: '#F2F2F7'
     },
     brandLogo: {
         width: 100,
         height: 60,
-        marginBottom: 10,
+        marginBottom: 10
     },
     brandDesc: {
         fontSize: 14,
         color: '#8E8E93',
-        textAlign: 'center',
+        textAlign: 'center'
     },
     emptyState: {
         alignItems: 'center',
-        marginTop: 50,
+        marginTop: 50
     },
     emptyText: {
         color: '#8E8E93',
-        fontSize: 16,
+        fontSize: 16
     }
 });
 

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
@@ -8,7 +9,6 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    Image,
     Keyboard
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -137,8 +137,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#F2F2F7',
-    },
+        borderBottomColor: '#F2F2F7' },
     backBtn: { width: 40 },
     headerInfo: { flex: 1, marginLeft: 8 },
     headerTitle: { fontSize: 16, fontWeight: '700', color: '#000' },
@@ -170,8 +169,7 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         backgroundColor: '#FFF',
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#F2F2F7',
-    },
+        borderTopColor: '#F2F2F7' },
     attachBtn: {
         width: 36, height: 36, borderRadius: 18, backgroundColor: '#F2F2F7',
         justifyContent: 'center', alignItems: 'center', marginRight: 12

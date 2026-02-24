@@ -1,4 +1,4 @@
-
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
     View,
@@ -6,7 +6,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
     Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +21,7 @@ const CartScreen = ({ navigation }) => {
 
     const items = cartItems || [];
     const subtotal = items.reduce((sum, item) => sum + (item.priceNum * item.quantity), 0);
-    const shipping = 499;
+    const shipping = subtotal > 0 ? (subtotal > 4999 ? 0 : 499) : 0;
 
     // Reward Logic
     const { discount, discountPercent } = calculateDiscount(subtotal);
@@ -37,123 +36,146 @@ const CartScreen = ({ navigation }) => {
         }, 1000);
     };
 
-    const renderItem = (item) => (
-        <View key={`${item.id}-${item.size}`} style={styles.cartItem}>
-            <Image source={{ uri: item.image }} style={styles.itemImage} />
-            <View style={styles.itemInfo}>
-                <View style={styles.itemHeader}>
-                    <Text style={styles.itemBrand}>{item.brand || 'VELORA'}</Text>
-                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.itemSize}>Size: {item.size}</Text>
-                </View>
-                <View style={styles.itemFooter}>
-                    <Text style={styles.itemPrice}>₹{(item.priceNum * item.quantity).toLocaleString()}</Text>
-                    <View style={styles.qtyControl}>
-                        <TouchableOpacity onPress={() => updateQuantity(item.id, item.size, -1)} style={styles.qtyBtn}>
-                            <Ionicons name="remove" size={16} color="#000" />
-                        </TouchableOpacity>
-                        <Text style={styles.qtyText}>{item.quantity}</Text>
-                        <TouchableOpacity onPress={() => updateQuantity(item.id, item.size, 1)} style={styles.qtyBtn}>
-                            <Ionicons name="add" size={16} color="#000" />
-                        </TouchableOpacity>
+    const renderItem = (item, index) => {
+        const isLast = index === items.length - 1;
+        return (
+            <View key={`${item.id}-${item.size}`} style={styles.cartItemContainer}>
+                <View style={styles.cartItemRow}>
+                    <Image source={{ uri: item.image }} style={styles.itemImage} contentFit="cover" />
+                    <View style={styles.itemInfo}>
+                        <View style={styles.itemHeader}>
+                            <View style={styles.itemMeta}>
+                                <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+                                <Text style={styles.itemDetails}>
+                                    {item.brand || 'VELORA'} • Size {item.size}
+                                </Text>
+                            </View>
+                            <Text style={styles.itemPrice}>₹{(item.priceNum * item.quantity).toLocaleString('en-IN')}</Text>
+                        </View>
+
+                        <View style={styles.itemActions}>
+                            <View style={styles.stepperControl}>
+                                <TouchableOpacity
+                                    onPress={() => updateQuantity(item.id, item.size, -1)}
+                                    style={styles.stepperButton}
+                                >
+                                    <Ionicons name={item.quantity > 1 ? "remove" : "trash-outline"} size={18} color="#007AFF" />
+                                </TouchableOpacity>
+                                <Text style={styles.stepperText}>{item.quantity}</Text>
+                                <TouchableOpacity
+                                    onPress={() => updateQuantity(item.id, item.size, 1)}
+                                    style={styles.stepperButton}
+                                >
+                                    <Ionicons name="add" size={18} color="#007AFF" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </View>
                 </View>
+                {!isLast && <View style={styles.listSeparator} />}
             </View>
-            <TouchableOpacity
-                style={styles.removeBtn}
-                onPress={() => removeFromCart(item.id, item.size)}
-            >
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>My Bag</Text>
-                <Text style={styles.headerCount}>{items.length} items</Text>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 10 : 20) }]}>
+                <Text style={styles.headerTitle}>Shopping Bag</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {items.length > 0 ? (
-                    items.map(renderItem)
-                ) : (
-                    <View style={styles.emptyContainer}>
-                        <View style={styles.iconCircle}>
-                            <Ionicons name="cart-outline" size={48} color="#D1D1D6" />
-                        </View>
-                        <Text style={styles.emptyText}>Your bag is empty</Text>
-                        <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Home')}>
-                            <Text style={styles.shopBtnText}>Start Shopping</Text>
-                        </TouchableOpacity>
+            {items.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="cart-outline" size={64} color="#C7C7CC" style={styles.emptyIcon} />
+                    <Text style={styles.emptyTitle}>Your bag is empty.</Text>
+                    <Text style={styles.emptyDesc}>Add items to start building your wardrobe.</Text>
+                    <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('HomeTab')}>
+                        <Text style={styles.shopBtnText}>Start Shopping</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+                    showsVerticalScrollIndicator={true}
+                >
+                    <View style={styles.iosGroup}>
+                        {items.map((item, index) => renderItem(item, index))}
                     </View>
-                )}
 
-                {/* Promo Code & Rewards */}
-                {items.length > 0 && (
-                    <View style={styles.extrasContainer}>
-                        <TouchableOpacity style={styles.promoRow}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="pricetag-outline" size={20} color="#000" />
-                                <Text style={styles.promoText}>Enter Promo Code</Text>
+                    {/* Promos & Rewards - iOS Group Style */}
+                    <Text style={styles.sectionFooterText}>PROMOS & REWARDS</Text>
+                    <View style={styles.iosGroup}>
+                        <TouchableOpacity style={styles.iosCellRow}>
+                            <View style={styles.iosCellLeft}>
+                                <Ionicons name="pricetag-outline" size={22} color="#007AFF" />
+                                <Text style={styles.iosCellText}>Promo Code</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                            <View style={styles.iosCellRight}>
+                                <Text style={styles.iosCellDetailText}>None</Text>
+                                <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                            </View>
                         </TouchableOpacity>
-
-                        {/* Reward Card Selection */}
+                        <View style={styles.listSeparator} />
                         <TouchableOpacity
-                            style={styles.rewardRow}
+                            style={styles.iosCellRow}
                             onPress={() => navigation.navigate('Rewards')}
                         >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name={selectedCard ? "card" : "card-outline"} size={20} color={selectedCard ? "#34C759" : "#000"} />
-                                <View style={{ marginLeft: 10 }}>
-                                    <Text style={styles.rewardTitle}>
-                                        {selectedCard && REWARD_CARDS[selectedCard] ? REWARD_CARDS[selectedCard].title : "Apply Reward Card"}
-                                    </Text>
-                                    {selectedCard && REWARD_CARDS[selectedCard] && (
-                                        <Text style={styles.rewardSubtitle}>{discountPercent}% saved</Text>
-                                    )}
-                                </View>
+                            <View style={styles.iosCellLeft}>
+                                <Ionicons name={selectedCard ? "card" : "card-outline"} size={22} color={selectedCard ? "#34C759" : "#007AFF"} />
+                                <Text style={styles.iosCellText}>Reward Card</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                            <View style={styles.iosCellRight}>
+                                <Text style={[styles.iosCellDetailText, selectedCard && { color: '#34C759' }]}>
+                                    {selectedCard && REWARD_CARDS[selectedCard] ? `-${discountPercent}%` : "Apply"}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                            </View>
                         </TouchableOpacity>
                     </View>
-                )}
-            </ScrollView>
 
-            {/* Checkout Summary */}
-            {items.length > 0 && (
-                <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Subtotal</Text>
-                        <Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Shipping</Text>
-                        <Text style={styles.summaryValue}>₹{shipping}</Text>
-                    </View>
-                    {discount > 0 && (
-                        <View style={styles.summaryRow}>
-                            <Text style={[styles.summaryLabel, { color: '#34C759' }]}>Discount</Text>
-                            <Text style={[styles.summaryValue, { color: '#34C759' }]}>-₹{discount.toLocaleString()}</Text>
+                    {/* Order Summary - iOS Group Style */}
+                    <Text style={styles.sectionFooterText}>ORDER SUMMARY</Text>
+                    <View style={styles.iosGroup}>
+                        <View style={styles.iosCellRowStatic}>
+                            <Text style={styles.iosCellLabel}>Subtotal</Text>
+                            <Text style={styles.iosCellValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
                         </View>
-                    )}
-                    <View style={styles.divider} />
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Total</Text>
-                        <Text style={styles.totalValue}>₹{total.toLocaleString()}</Text>
+                        <View style={styles.listSeparator} />
+                        <View style={styles.iosCellRowStatic}>
+                            <Text style={styles.iosCellLabel}>Shipping</Text>
+                            <Text style={styles.iosCellValue}>{shipping === 0 ? "FREE" : `₹${shipping}`}</Text>
+                        </View>
+                        {discount > 0 && (
+                            <>
+                                <View style={styles.listSeparator} />
+                                <View style={styles.iosCellRowStatic}>
+                                    <Text style={styles.iosCellLabel}>Discount ({discountPercent}%)</Text>
+                                    <Text style={[styles.iosCellValue, { color: '#34C759' }]}>-₹{discount.toLocaleString('en-IN')}</Text>
+                                </View>
+                            </>
+                        )}
+                        <View style={styles.listSeparator} />
+                        <View style={styles.iosCellRowStatic}>
+                            <Text style={styles.iosTotalLabel}>Total</Text>
+                            <Text style={styles.iosTotalValue}>₹{total.toLocaleString('en-IN')}</Text>
+                        </View>
                     </View>
+
                     <TouchableOpacity
-                        style={[styles.checkoutBtn, isCheckoutLoading && { opacity: 0.7 }]}
+                        style={[styles.iosPrimaryBtn, isCheckoutLoading && { opacity: 0.7 }]}
                         onPress={handleCheckout}
                         disabled={isCheckoutLoading}
                     >
-                        <Text style={styles.checkoutText}>{isCheckoutLoading ? 'Processing...' : 'Proceed onto Checkout'}</Text>
-                        <Ionicons name="arrow-forward" size={20} color="#fff" />
+                        {isCheckoutLoading ? (
+                            <Text style={styles.iosPrimaryBtnText}>Processing...</Text>
+                        ) : (
+                            <>
+                                <Ionicons name="lock-closed" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                                <Text style={styles.iosPrimaryBtnText}>Checkout</Text>
+                            </>
+                        )}
                     </TouchableOpacity>
-                </View>
+                    <Text style={styles.secureText}>Secure Payment via Razorpay</Text>
+                </ScrollView>
             )}
         </View>
     );
@@ -162,211 +184,226 @@ const CartScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F7', // Standard iOS background gray
+        backgroundColor: '#F2F2F7', // Standard iOS grouped background color
     },
     header: {
-        paddingHorizontal: 20,
-        paddingBottom: 15,
+        paddingHorizontal: 16,
+        paddingBottom: 8,
         backgroundColor: '#F2F2F7',
     },
     headerTitle: {
-        fontSize: 32,
-        fontWeight: '800',
+        fontSize: 34,
+        fontWeight: '700',
         color: '#000',
-    },
-    headerCount: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginTop: 4,
+        letterSpacing: 0.4,
     },
     scrollContent: {
-        paddingBottom: 20,
+        paddingTop: 16,
     },
-    cartItem: {
+    iosGroup: {
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        marginHorizontal: 16,
+        overflow: 'hidden',
+    },
+    cartItemContainer: {
+        backgroundColor: '#FFF',
+    },
+    cartItemRow: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
-        padding: 15,
-        marginBottom: 1, // Separator line effect
+        padding: 16,
+    },
+    listSeparator: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: '#C6C6C8',
+        marginLeft: 16, // iOS standard inset
     },
     itemImage: {
-        width: 80,
-        height: 100,
+        width: 70,
+        height: 85,
         borderRadius: 8,
         backgroundColor: '#F2F2F7',
     },
     itemInfo: {
         flex: 1,
-        marginLeft: 15,
+        marginLeft: 16,
         justifyContent: 'space-between',
-        paddingVertical: 2,
     },
-    itemBrand: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: '#8E8E93',
-        textTransform: 'uppercase',
-    },
-    itemName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#000',
-        marginBottom: 4,
-    },
-    itemSize: {
-        fontSize: 12,
-        color: '#8E8E93',
-    },
-    itemFooter: {
+    itemHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+    },
+    itemMeta: {
+        flex: 1,
+        paddingRight: 12,
+    },
+    itemName: {
+        fontSize: 17,
+        fontWeight: '400',
+        color: '#000',
+        lineHeight: 22,
+        letterSpacing: -0.4,
+    },
+    itemDetails: {
+        fontSize: 13,
+        color: '#8A8A8E',
+        marginTop: 4,
     },
     itemPrice: {
-        fontSize: 15,
-        fontWeight: '700',
+        fontSize: 17,
+        fontWeight: '600',
         color: '#000',
+        letterSpacing: -0.4,
     },
-    qtyControl: {
+    itemActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    stepperControl: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F2F2F7',
-        borderRadius: 15,
+        borderRadius: 8,
         paddingHorizontal: 8,
         paddingVertical: 4,
     },
-    qtyBtn: {
+    stepperButton: {
         padding: 4,
     },
-    qtyText: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginHorizontal: 10,
+    stepperText: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#000',
+        minWidth: 24,
+        textAlign: 'center',
+        marginHorizontal: 8,
     },
-    removeBtn: {
-        justifyContent: 'center',
-        paddingLeft: 10,
+    sectionFooterText: {
+        fontSize: 13,
+        color: '#6D6D72',
+        textTransform: 'uppercase',
+        marginTop: 24,
+        marginBottom: 8,
+        marginHorizontal: 32,
     },
-    extrasContainer: {
-        marginTop: 20,
-        backgroundColor: '#fff',
-    },
-    promoRow: {
+    iosCellRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F7',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        minHeight: 44,
     },
-    promoText: {
-        marginLeft: 10,
-        fontSize: 15,
-        fontWeight: '500',
-    },
-    rewardRow: {
+    iosCellRowStatic: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        minHeight: 44,
     },
-    rewardTitle: {
-        fontSize: 15,
-        fontWeight: '500',
-    },
-    rewardSubtitle: {
-        fontSize: 12,
-        color: '#34C759',
-        fontWeight: '600',
-    },
-    footer: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 10,
-    },
-    summaryRow: {
+    iosCellLeft: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
+        alignItems: 'center',
     },
-    summaryLabel: {
-        fontSize: 14,
-        color: '#8E8E93',
+    iosCellText: {
+        fontSize: 17,
+        color: '#000',
+        marginLeft: 12,
+        letterSpacing: -0.4,
     },
-    summaryValue: {
-        fontSize: 14,
+    iosCellRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    iosCellDetailText: {
+        fontSize: 17,
+        color: '#8A8A8E',
+        letterSpacing: -0.4,
+    },
+    iosCellLabel: {
+        fontSize: 17,
+        color: '#000',
+        letterSpacing: -0.4,
+    },
+    iosCellValue: {
+        fontSize: 17,
+        color: '#8A8A8E',
+        letterSpacing: -0.4,
+    },
+    iosTotalLabel: {
+        fontSize: 17,
         fontWeight: '600',
         color: '#000',
+        letterSpacing: -0.4,
     },
-    divider: {
-        height: 1,
-        backgroundColor: '#F2F2F7',
-        marginVertical: 12,
-    },
-    totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-    },
-    totalLabel: {
-        fontSize: 18,
-        fontWeight: '800',
+    iosTotalValue: {
+        fontSize: 17,
+        fontWeight: '600',
         color: '#000',
+        letterSpacing: -0.4,
     },
-    totalValue: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#000',
-    },
-    checkoutBtn: {
-        backgroundColor: '#000',
+    iosPrimaryBtn: {
+        backgroundColor: '#007AFF', // iOS standard blue
+        marginHorizontal: 16,
+        marginTop: 32,
+        borderRadius: 14,
+        paddingVertical: 16,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 18,
-        borderRadius: 30,
     },
-    checkoutText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '700',
-        marginRight: 8,
+    iosPrimaryBtnText: {
+        color: '#FFF',
+        fontSize: 17,
+        fontWeight: '600',
+        letterSpacing: -0.4,
+    },
+    secureText: {
+        textAlign: 'center',
+        fontSize: 13,
+        color: '#8A8A8E',
+        marginTop: 16,
     },
     emptyContainer: {
+        flex: 1,
         alignItems: 'center',
-        marginTop: 60,
-    },
-    iconCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#fff',
         justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
+        paddingHorizontal: 32,
     },
-    emptyText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#8E8E93',
-        marginBottom: 20,
+    emptyIcon: {
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#000',
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    emptyDesc: {
+        fontSize: 15,
+        color: '#8A8A8E',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
     },
     shopBtn: {
-        backgroundColor: '#000',
+        backgroundColor: '#007AFF',
         paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 20,
+        paddingVertical: 14,
+        borderRadius: 12,
     },
     shopBtnText: {
-        color: '#fff',
-        fontSize: 14,
+        color: '#FFF',
+        fontSize: 17,
         fontWeight: '600',
-    },
+        letterSpacing: -0.4,
+    }
 });
 
 export default CartScreen;

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 
 import React from 'react';
 import {
@@ -6,7 +7,6 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    Image,
     Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -133,8 +133,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F7',
-    },
+        backgroundColor: '#F2F2F7' },
     header: {
         paddingTop: 60,
         paddingBottom: 12,
@@ -146,26 +145,21 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 17,
         fontWeight: '600',
-        color: '#000',
-    },
+        color: '#000' },
     scrollContent: {
-        paddingBottom: 40,
-    },
+        paddingBottom: 40 },
     profileHeader: {
         alignItems: 'center',
         paddingVertical: 24,
-        marginBottom: 10,
-    },
+        marginBottom: 10 },
     avatarContainer: {
         position: 'relative',
-        marginBottom: 12,
-    },
+        marginBottom: 12 },
     avatar: {
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: '#E1E1E1',
-    },
+        backgroundColor: '#E1E1E1' },
     editBtn: {
         position: 'absolute',
         bottom: 0,
@@ -177,62 +171,51 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: '#F2F2F7',
-    },
+        borderColor: '#F2F2F7' },
     name: {
         fontSize: 22,
         fontWeight: '700',
         color: '#000',
-        marginBottom: 4,
-    },
+        marginBottom: 4 },
     email: {
         fontSize: 14,
-        color: '#8E8E93',
-    },
+        color: '#8E8E93' },
     sectionContainer: {
-        marginBottom: 24,
-    },
+        marginBottom: 24 },
     sectionHeader: {
         fontSize: 13,
         color: '#6D6D72',
         fontWeight: '500',
         marginBottom: 8,
-        marginLeft: 20,
-    },
+        marginLeft: 20 },
     section: {
         backgroundColor: '#FFF',
         borderTopWidth: StyleSheet.hairlineWidth,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderColor: '#C6C6C8',
-    },
+        borderColor: '#C6C6C8' },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: 12,
         paddingRight: 16,
-        marginLeft: 16,
-    },
+        marginLeft: 16 },
     separator: {
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#C6C6C8',
-    },
+        borderBottomColor: '#C6C6C8' },
     leftContent: {
         flexDirection: 'row',
-        alignItems: 'center',
-    },
+        alignItems: 'center' },
     iconBox: {
         width: 29,
         height: 29,
         borderRadius: 7,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
-    },
+        marginRight: 12 },
     rowTitle: {
         fontSize: 16,
-        color: '#000',
-    },
+        color: '#000' },
     logoutBtn: {
         backgroundColor: '#FFF',
         paddingVertical: 14,
@@ -241,19 +224,15 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderColor: '#C6C6C8',
         marginBottom: 24,
-        marginTop: 10,
-    },
+        marginTop: 10 },
     logoutText: {
         color: '#FF3B30',
         fontSize: 16,
-        fontWeight: '500',
-    },
+        fontWeight: '500' },
     versionText: {
         color: '#C7C7CC',
         fontSize: 12,
         textAlign: 'center',
-        marginBottom: 20,
-    },
-});
+        marginBottom: 20 } });
 
 export default ProfileScreen;

@@ -1,12 +1,11 @@
+import { Image } from 'expo-image';
 import React, { useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     Animated,
-    Dimensions,
-    Image
-} from 'react-native';
+    Dimensions } from 'react-native';
 import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -66,8 +65,7 @@ const DynamicIslandAlert = ({ visible, message, image, onClose }) => {
         width: widthAnim.interpolate({
             inputRange: [0, 1],
             outputRange: [120, width - 40]
-        }),
-    };
+        }) };
 
     return (
         <View style={[styles.container, { top: insets.top + 10 }]}>
@@ -90,8 +88,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         alignItems: 'center',
-        zIndex: 9999,
-    },
+        zIndex: 9999 },
     island: {
         height: 60,
         backgroundColor: 'black',
@@ -104,8 +101,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        paddingLeft: 4,
-    },
+        paddingLeft: 4 },
     thumb: {
         width: 40,
         height: 40,
@@ -115,17 +111,14 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         flex: 1,
-        justifyContent: 'center',
-    },
+        justifyContent: 'center' },
     message: {
         color: 'white',
         fontWeight: 'bold',
-        fontSize: 14,
-    },
+        fontSize: 14 },
     subtext: {
         color: '#888',
-        fontSize: 12,
-    }
+        fontSize: 12 }
 });
 
 export default DynamicIslandAlert;

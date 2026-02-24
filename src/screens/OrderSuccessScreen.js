@@ -41,7 +41,7 @@ const OrderSuccessScreen = ({ navigation }) => {
 
                 <VeloraButton
                     title="CONTINUE SHOPPING"
-                    onPress={() => navigation.navigate('Home')}
+                    onPress={() => navigation.navigate('HomeTab')}
                     style={styles.homeBtn}
                 />
             </View>

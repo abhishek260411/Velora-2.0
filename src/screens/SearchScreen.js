@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
@@ -7,7 +8,6 @@ import {
     TouchableOpacity,
     ScrollView,
     Dimensions,
-    Image,
     ActivityIndicator,
     FlatList
 } from 'react-native';
@@ -22,20 +22,11 @@ import _ from 'lodash';
 
 const { width } = Dimensions.get('window');
 
-const CATEGORIES = [
-    { id: '1', name: 'Men', image: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&q=80&w=400' },
-    { id: '2', name: 'Women', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=400' },
-    { id: '3', name: 'Shoes', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400' },
-    { id: '4', name: 'Accessories', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=400' },
-    { id: '5', name: 'Sale', image: 'https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&q=80&w=400' },
-    { id: '6', name: 'New In', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=400' },
-];
-
-const RECENT_SEARCHES = ['Nike Air Max', 'Black Hoodie', 'Sunglasses', 'Denim'];
 
 const SearchScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
+    const [recentSearches, setRecentSearches] = useState(['Nike Air Max', 'Black Hoodie', 'Sunglasses', 'Denim']);
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterVisible, setFilterVisible] = useState(false);
@@ -115,17 +106,7 @@ const SearchScreen = ({ navigation }) => {
         }
     };
 
-    const renderCategoryItem = (item) => (
-        <TouchableOpacity
-            key={item.id}
-            style={styles.catItem}
-            onPress={() => navigation.navigate('ProductListing', { category: item.name })}
-        >
-            <Image source={{ uri: item.image }} style={styles.catImage} />
-            <View style={styles.catOverlay} />
-            <Text style={styles.catName}>{item.name}</Text>
-        </TouchableOpacity>
-    );
+
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -187,16 +168,16 @@ const SearchScreen = ({ navigation }) => {
             ) : (
                 // Default View (Recent + Categories)
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-                    {RECENT_SEARCHES.length > 0 && (
+                    {recentSearches.length > 0 && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Text style={styles.sectionTitle}>Recent Searches</Text>
-                                <TouchableOpacity>
+                                <TouchableOpacity onPress={() => setRecentSearches([])}>
                                     <Text style={styles.clearBtn}>Clear</Text>
                                 </TouchableOpacity>
                             </View>
                             <View style={styles.tagContainer}>
-                                {RECENT_SEARCHES.map((tag, index) => (
+                                {recentSearches.map((tag, index) => (
                                     <TouchableOpacity key={index} style={styles.tag} onPress={() => setSearchQuery(tag)}>
                                         <Text style={styles.tagText}>{tag}</Text>
                                     </TouchableOpacity>
@@ -205,12 +186,7 @@ const SearchScreen = ({ navigation }) => {
                         </View>
                     )}
 
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Browse Categories</Text>
-                        <View style={styles.grid}>
-                            {CATEGORIES.map(renderCategoryItem)}
-                        </View>
-                    </View>
+
                 </ScrollView>
             )}
 
@@ -234,7 +210,7 @@ const SearchScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#FFFFFF'
     },
     header: {
         paddingHorizontal: 20,
@@ -243,7 +219,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 10
     },
     searchBar: {
         flex: 1,
@@ -252,14 +228,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#F2F2F7',
         borderRadius: 12,
         paddingHorizontal: 12,
-        height: 48,
+        height: 48
     },
     input: {
         flex: 1,
         marginLeft: 10,
         fontSize: 16,
         color: '#000',
-        fontWeight: '500',
+        fontWeight: '500'
     },
     filterReqions: {
         flexDirection: 'row',
@@ -268,95 +244,60 @@ const styles = StyleSheet.create({
     filterBtn: {
         padding: 10,
         backgroundColor: '#F2F2F7',
-        borderRadius: 12,
+        borderRadius: 12
     },
     content: {
-        paddingBottom: 100,
+        paddingBottom: 100
     },
     listContent: {
         padding: 20,
-        paddingBottom: 100,
+        paddingBottom: 100
     },
     section: {
         marginTop: 25,
-        paddingHorizontal: 20,
+        paddingHorizontal: 20
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 15
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000',
+        color: '#000'
     },
     clearBtn: {
         fontSize: 14,
         color: '#007BFF',
-        fontWeight: '500',
+        fontWeight: '500'
     },
     tagContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 10
     },
     tag: {
         paddingVertical: 8,
         paddingHorizontal: 16,
         backgroundColor: '#F2F2F7',
-        borderRadius: 20,
+        borderRadius: 20
     },
     tagText: {
         fontSize: 14,
         color: '#1C1C1E',
-        fontWeight: '500',
-    },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        marginTop: 15,
-    },
-    catItem: {
-        width: (width - 55) / 2, // 2 columns with spacing
-        height: 120,
-        marginBottom: 15,
-        borderRadius: 16,
-        overflow: 'hidden',
-        position: 'relative',
-        backgroundColor: '#F2F2F7',
-    },
-    catImage: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
-    catOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-    },
-    catName: {
-        position: 'absolute',
-        bottom: 12,
-        left: 12,
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-        textShadowColor: 'rgba(0,0,0,0.3)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        fontWeight: '500'
     },
     emptyState: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 50,
+        marginTop: 50
     },
     emptyText: {
         fontSize: 16,
-        color: '#8E8E93',
+        color: '#8E8E93'
     }
 });
 

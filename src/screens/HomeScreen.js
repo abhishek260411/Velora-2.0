@@ -76,7 +76,21 @@ const HomeScreen = ({ navigation }) => {
                 limit(10)
             );
             const snapshot = await getDocs(q);
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            if (items.length === 0) {
+                const fallbackQ = query(
+                    collection(db, 'products'),
+                    where('trending', '==', true),
+                    limit(10)
+                );
+                const fallbackSnapshot = await getDocs(fallbackQ);
+                items = fallbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (items.length === 0) {
+                    console.warn('No trending docs found (neither isTrending nor trending=true)');
+                }
+            }
+
             setTrendingProducts(items);
         } catch (error) {
             console.error("Error fetching trending:", error);
@@ -97,8 +111,8 @@ const HomeScreen = ({ navigation }) => {
         }));
     };
 
-    const renderHeroCard = (title, subtitle, image) => (
-        <TouchableOpacity style={styles.heroCard} activeOpacity={0.9} onPress={() => navigation.navigate('ProductListing')}>
+    const renderHeroCard = (title, subtitle, image, category) => (
+        <TouchableOpacity style={styles.heroCard} activeOpacity={0.9} onPress={() => navigation.navigate('ProductListing', { category })}>
             <Image source={{ uri: image }} style={styles.heroImage} contentFit="cover" />
             <View style={styles.heroOverlay} />
             <View style={styles.heroContent}>
@@ -167,12 +181,20 @@ const HomeScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <SafeAreaView edges={['top']} style={styles.safeArea}>
-                {/* Header */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>Good Morning,</Text>
-                        <Text style={styles.username}>{firstName}</Text>
-                    </View>
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        onPress={() => navigation.navigate('ProfileTab')}
+                    >
+                        <Image
+                            source={{ uri: userData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }}
+                            style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#E1E1E1' }}
+                            contentFit="cover"
+                        />
+                        <View>
+                            <Text style={styles.username}>{firstName}</Text>
+                        </View>
+                    </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.iconBtn}
                         onPress={() => navigation.navigate('Notifications')}
@@ -194,7 +216,8 @@ const HomeScreen = ({ navigation }) => {
                         decelerationRate="fast"
                         snapToInterval={width - 40}
                     >
-                        {renderHeroCard("Urban Streetwear", "TRENDING", "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&q=80&w=800")}
+                        {renderHeroCard("Men's Collection", "NEW ARRIVALS", "https://images.unsplash.com/photo-1617137968427-85924c800a22?auto=format&fit=crop&q=80&w=800", "Men")}
+                        {renderHeroCard("Women's Collection", "TRENDING NOW", "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800", "Women")}
                     </ScrollView>
 
                     {/* Categories Chips */}
@@ -274,11 +297,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 15,
         backgroundColor: '#fff'
-    },
-    greeting: {
-        fontSize: 14,
-        color: '#8E8E93',
-        fontWeight: '500'
     },
     username: {
         fontSize: 24,

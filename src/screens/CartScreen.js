@@ -13,6 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../context/CartContext';
 import { useRewards } from '../context/RewardsContext';
 
+const formatCurrency = (number) => {
+    const num = Math.floor(number).toString();
+    const lastThree = num.substring(num.length - 3);
+    const otherNumbers = num.substring(0, num.length - 3);
+    const ds = otherNumbers !== '' ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "";
+    return ds + lastThree;
+};
+
 const CartScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const { cartItems, updateQuantity, removeFromCart } = useCart();
@@ -50,7 +58,7 @@ const CartScreen = ({ navigation }) => {
                                     {item.brand || 'VELORA'} • Size {item.size}
                                 </Text>
                             </View>
-                            <Text style={styles.itemPrice}>₹{(item.priceNum * item.quantity).toLocaleString('en-IN')}</Text>
+                            <Text style={styles.itemPrice}>₹{formatCurrency(item.priceNum * item.quantity)}</Text>
                         </View>
 
                         <View style={styles.itemActions}>
@@ -104,7 +112,7 @@ const CartScreen = ({ navigation }) => {
                     {/* Promos & Rewards - iOS Group Style */}
                     <Text style={styles.sectionFooterText}>PROMOS & REWARDS</Text>
                     <View style={styles.iosGroup}>
-                        <TouchableOpacity style={styles.iosCellRow}>
+                        <TouchableOpacity style={styles.iosCellRow} disabled={true} activeOpacity={1}>
                             <View style={styles.iosCellLeft}>
                                 <Ionicons name="pricetag-outline" size={22} color="#007AFF" />
                                 <Text style={styles.iosCellText}>Promo Code</Text>
@@ -137,7 +145,7 @@ const CartScreen = ({ navigation }) => {
                     <View style={styles.iosGroup}>
                         <View style={styles.iosCellRowStatic}>
                             <Text style={styles.iosCellLabel}>Subtotal</Text>
-                            <Text style={styles.iosCellValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
+                            <Text style={styles.iosCellValue}>₹{formatCurrency(subtotal)}</Text>
                         </View>
                         <View style={styles.listSeparator} />
                         <View style={styles.iosCellRowStatic}>
@@ -149,14 +157,14 @@ const CartScreen = ({ navigation }) => {
                                 <View style={styles.listSeparator} />
                                 <View style={styles.iosCellRowStatic}>
                                     <Text style={styles.iosCellLabel}>Discount ({discountPercent}%)</Text>
-                                    <Text style={[styles.iosCellValue, { color: '#34C759' }]}>-₹{discount.toLocaleString('en-IN')}</Text>
+                                    <Text style={[styles.iosCellValue, { color: '#34C759' }]}>-₹{formatCurrency(discount)}</Text>
                                 </View>
                             </>
                         )}
                         <View style={styles.listSeparator} />
                         <View style={styles.iosCellRowStatic}>
                             <Text style={styles.iosTotalLabel}>Total</Text>
-                            <Text style={styles.iosTotalValue}>₹{total.toLocaleString('en-IN')}</Text>
+                            <Text style={styles.iosTotalValue}>₹{formatCurrency(total)}</Text>
                         </View>
                     </View>
 

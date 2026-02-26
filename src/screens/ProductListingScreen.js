@@ -37,7 +37,12 @@ const ProductListingScreen = ({ navigation, route }) => {
 
     const [allProducts, setAllProducts] = useState([]);
     const [displayedProducts, setDisplayedProducts] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState(chips.includes(categoryName) ? categoryName : chips[0]);
+    const [selectedCategory, setSelectedCategory] = useState(chips[0]);
+
+    useEffect(() => {
+        setSelectedCategory(chips[0]);
+    }, [categoryName]);
+
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -83,7 +88,13 @@ const ProductListingScreen = ({ navigation, route }) => {
                     const tag = p.tag ? p.tag.toLowerCase() : '';
 
                     // Special handling: "Shirts" should not match "T-Shirt"
-                    if (selectedCategory === 'Shirts' && (subCat.includes('t-shirt') || name.includes('t-shirt'))) {
+                    if (selectedCategory === 'Shirts' && (
+                        subCat.includes('t-shirt') ||
+                        name.includes('t-shirt') ||
+                        tags.some(t => t.includes('t-shirt')) ||
+                        tag.includes('t-shirt') ||
+                        (p.brand && p.brand.toLowerCase().includes('t-shirt'))
+                    )) {
                         return false;
                     }
 

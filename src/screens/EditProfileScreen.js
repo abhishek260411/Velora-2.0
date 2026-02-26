@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -9,6 +9,9 @@ import VeloraButton from '../components/VeloraButton';
 import { validatePhone, validateEmail } from '../utils/userUtils';
 import VeloraModal from '../components/VeloraModal';
 import { useVeloraModal } from '../hooks/useVeloraModal';
+import * as ImagePicker from 'expo-image-picker';
+import { auth } from '../config/firebase';
+import { Image } from 'expo-image';
 
 const EditProfileScreen = ({ navigation }) => {
     const { userData, updateUserProfile } = useAuth();
@@ -22,6 +25,25 @@ const EditProfileScreen = ({ navigation }) => {
     const [state, setState] = useState(userData?.address?.state || '');
     const [zipCode, setZipCode] = useState(userData?.address?.zipCode || '');
     const [isLoading, setIsLoading] = useState(false);
+    const [imageUri, setImageUri] = useState(userData?.photoURL || null);
+
+    const pickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+            });
+
+            if (!result.canceled) {
+                setImageUri(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            modal.showError('Error', 'Failed to pick image.');
+        }
+    };
 
     const handleSave = async () => {
         // Validation
@@ -38,6 +60,15 @@ const EditProfileScreen = ({ navigation }) => {
         setIsLoading(true);
 
         try {
+            let photoUrlToSave = userData?.photoURL;
+            if (imageUri && imageUri !== userData?.photoURL) {
+                // TODO: Upload imageUri to Firebase Storage and use getDownloadURL() here
+                // instead of saving the local device URI directly. Local URIs are not
+                // portable across devices. This requires firebase/storage to be configured.
+                // For now, save the local URI as a temporary solution.
+                photoUrlToSave = imageUri;
+            }
+
             // Split name into first and last name
             const nameParts = displayName.trim().split(' ');
             const firstName = nameParts[0] || '';
@@ -53,6 +84,8 @@ const EditProfileScreen = ({ navigation }) => {
                 'address.state': state.trim(),
                 'address.zipCode': zipCode.trim(),
             };
+
+            if (photoUrlToSave) updates.photoURL = photoUrlToSave;
 
             const result = await updateUserProfile(updates);
 
@@ -90,6 +123,25 @@ const EditProfileScreen = ({ navigation }) => {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                 >
+                    {/* Profile Image Section */}
+                    <View style={styles.imageSection}>
+                        <TouchableOpacity style={{ alignItems: 'center' }} onPress={pickImage}>
+                            <View style={styles.imageContainer}>
+                                <Image
+                                    source={{ uri: imageUri || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }}
+                                    style={styles.profileImage}
+                                    contentFit="cover"
+                                />
+                                <View style={styles.editImageBadge}>
+                                    <MaterialCommunityIcons name="camera" size={16} color="#FFF" />
+                                </View>
+                            </View>
+                            <Text style={{ marginTop: 12, color: '#007AFF', fontSize: 16, fontWeight: '500' }}>
+                                Change Profile Photo
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* Personal Information */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>PERSONAL INFORMATION</Text>
@@ -149,25 +201,7 @@ const EditProfileScreen = ({ navigation }) => {
                         />
                     </View>
 
-                    {/* Account Info (Read-only) */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>ACCOUNT INFORMATION</Text>
 
-                        <View style={styles.readOnlyField}>
-                            <Text style={styles.readOnlyLabel}>Email</Text>
-                            <Text style={styles.readOnlyValue}>{userData?.email}</Text>
-                        </View>
-
-                        <View style={styles.readOnlyField}>
-                            <Text style={styles.readOnlyLabel}>Role</Text>
-                            <Text style={styles.readOnlyValue}>{userData?.role?.toUpperCase() || 'CUSTOMER'}</Text>
-                        </View>
-
-                        <View style={styles.readOnlyField}>
-                            <Text style={styles.readOnlyLabel}>Provider</Text>
-                            <Text style={styles.readOnlyValue}>{userData?.provider?.toUpperCase() || 'EMAIL'}</Text>
-                        </View>
-                    </View>
 
                     {/* Save Button */}
                     <View style={styles.actionContainer}>
@@ -225,6 +259,32 @@ const styles = StyleSheet.create({
         ...theme.typography.header,
         fontSize: 24,
     },
+    imageSection: {
+        alignItems: 'center',
+        marginVertical: 20,
+    },
+    imageContainer: {
+        position: 'relative',
+    },
+    profileImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#E1E1E1',
+    },
+    editImageBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: theme.colors.black,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: theme.colors.white,
+    },
     scrollContent: {
         paddingBottom: 40,
     },
@@ -238,22 +298,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         opacity: 0.6,
     },
-    readOnlyField: {
-        paddingVertical: 12,
-        marginBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.lightGray,
-    },
-    readOnlyLabel: {
-        ...theme.typography.body,
-        fontSize: 12,
-        opacity: 0.6,
-        marginBottom: 4,
-    },
-    readOnlyValue: {
-        ...theme.typography.body,
-        fontWeight: '600',
-    },
+
     actionContainer: {
         marginHorizontal: 24,
     },

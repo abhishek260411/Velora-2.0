@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../theme';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import GlassCard from '../components/GlassCard';
@@ -18,34 +19,53 @@ import { useRewards } from '../context/RewardsContext';
 import { useAuth } from '../context/AuthContext';
 import VeloraButton from '../components/VeloraButton';
 import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, getDocs } from 'firebase/firestore';
 
-const ADDRESSES = [
-    {
-        id: '1',
-        type: 'Home',
-        name: 'Snehal Pinjari',
-        phone: '+91 98765 43210',
-        address: '123, Luxury Heights, Palm Beach Road, Vashi, Navi Mumbai - 400703',
-        selected: true
-    },
-    {
-        id: '2',
-        type: 'Work',
-        name: 'Snehal Pinjari',
-        phone: '+91 98765 43210',
-        address: 'Velora HQ, Tech Park, Powai, Mumbai - 400076',
-        selected: false
-    }
-];
-
-const CheckoutScreen = ({ navigation }) => {
+const CheckoutScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { cartItems, clearCart } = useCart();
     const { calculateDiscount, REWARD_CARDS, selectedCard, addSpending } = useRewards();
-    const { userData } = useAuth();
+    const { user, userData } = useAuth();
 
-    const [selectedAddress, setSelectedAddress] = useState('1');
+    const [addresses, setAddresses] = useState([]);
+    const [selectedAddress, setSelectedAddress] = useState(null);
+
+    useEffect(() => {
+        if (route.params?.selectedAddressId) {
+            setSelectedAddress(route.params.selectedAddressId);
+        }
+    }, [route.params?.selectedAddressId]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchAddresses = async () => {
+                if (!user?.uid) return;
+                try {
+                    const q = query(collection(db, 'users', user.uid, 'addresses'));
+                    const querySnapshot = await getDocs(q);
+                    const addrList = querySnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    // Sort: default address first
+                    addrList.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+                    setAddresses(addrList);
+
+                    // Set default selectedAddress if none is selected, or if the current one was deleted
+                    setSelectedAddress(currentSelected => {
+                        if (!currentSelected || !addrList.find(a => a.id === currentSelected)) {
+                            return addrList.length > 0 ? addrList[0].id : null;
+                        }
+                        return currentSelected;
+                    });
+                } catch (error) {
+                    console.error('Error fetching addresses:', error);
+                }
+            };
+            fetchAddresses();
+        }, [user?.uid])
+    );
+
     const [selectedPayment, setSelectedPayment] = useState('upi');
 
     // Payment Form States
@@ -122,9 +142,29 @@ const CheckoutScreen = ({ navigation }) => {
             }
         }
 
+        if (selectedPayment !== 'cod') {
+            // TODO: implement payment gateway integration here, referencing selectedPayment, newOrder, and addDoc
+            // e.g. await processPayment(paymentPayload);
+            Alert.alert('Payment Not Supported', 'Only Cash on Delivery is currently supported. Please select COD.');
+            return;
+        }
+
         try {
             // Find selected address obj
-            const selectedAddressObj = ADDRESSES.find(a => a.id === selectedAddress) || ADDRESSES[0];
+            const selectedAddressObj = addresses.find(a => a.id === selectedAddress);
+            if (!selectedAddressObj) {
+                Alert.alert('Error', 'Invalid selected address');
+                return;
+            }
+
+            const addrParts = [
+                selectedAddressObj?.street,
+                selectedAddressObj?.city,
+                selectedAddressObj?.state
+            ].filter(Boolean).join(', ');
+            const zipPart = selectedAddressObj?.zipCode ? ` - ${selectedAddressObj.zipCode}` : '';
+            const namePart = selectedAddressObj?.name || '';
+            const fullAddress = namePart ? `${namePart}\n${addrParts}${zipPart}` : `${addrParts}${zipPart}`;
 
             // Build order items
             const orderItems = cartItems.map(item => ({
@@ -138,12 +178,16 @@ const CheckoutScreen = ({ navigation }) => {
             }));
 
             // Create Order Document
+            // TODO: Move price validation/computation to a server-side Cloud Function or Firestore security rules.
+            // Do not persist client-sent total/subtotal/shipping/discount directly without validation so tampered clients cannot write inconsistent totals.
             const newOrder = {
-                userId: userData?.uid || 'guest',
-                customerName: userData?.displayName || selectedAddressObj.name,
+                userId: user?.uid || userData?.uid || 'guest',
+                customerName: user?.displayName || userData?.displayName || 'guest',
+                shippingName: selectedAddressObj.name,
                 customerEmail: userData?.email || '',
                 customerPhone: selectedAddressObj.phone,
-                shippingAddress: selectedAddressObj.address,
+                shippingAddress: fullAddress,
+                address: fullAddress,
                 items: orderItems,
                 itemsCount: orderItems.reduce((sum, i) => sum + i.quantity, 0),
                 total,
@@ -152,12 +196,17 @@ const CheckoutScreen = ({ navigation }) => {
                 discount,
                 paymentMethod: selectedPayment,
                 status: 'pending',
-                createdAt: serverTimestamp() };
+                createdAt: serverTimestamp()
+            };
 
             await addDoc(collection(db, 'orders'), newOrder);
 
-            // Add spending to rewards
-            await addSpending(total);
+            try {
+                // Add spending to rewards
+                await addSpending(total);
+            } catch (err) {
+                console.warn('Failed to add spending:', err);
+            }
 
             // Clear the cart
             clearCart();
@@ -188,35 +237,43 @@ const CheckoutScreen = ({ navigation }) => {
                 {/* Shipping Address Section */}
                 <Text style={styles.sectionHeader}>SHIPPING ADDRESS</Text>
                 <View style={styles.groupContainer}>
-                    {ADDRESSES.map((addr, index) => (
-                        <TouchableOpacity
-                            key={addr.id}
-                            style={[
-                                styles.rowItem,
-                                index !== ADDRESSES.length - 1 && styles.separator
-                            ]}
-                            onPress={() => setSelectedAddress(addr.id)}
-                        >
-                            <View style={{ flex: 1 }}>
-                                <View style={styles.addrHeader}>
-                                    <Text style={styles.addrName}>{addr.name}</Text>
-                                    <View style={styles.tag}>
-                                        <Text style={styles.tagText}>{addr.type}</Text>
+                    {addresses.length === 0 ? (
+                        <View style={[styles.rowItem, styles.separator]}>
+                            <Text style={styles.addrText}>No addresses found.</Text>
+                        </View>
+                    ) : (
+                        addresses.map((addr, index) => (
+                            <TouchableOpacity
+                                key={addr.id}
+                                style={[
+                                    styles.rowItem,
+                                    index !== addresses.length - 1 && styles.separator
+                                ]}
+                                onPress={() => setSelectedAddress(addr.id)}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <View style={styles.addrHeader}>
+                                        <Text style={styles.addrName}>{addr.name}</Text>
+                                        <View style={styles.tag}>
+                                            <Text style={styles.tagText}>{addr.type || 'Home'}</Text>
+                                        </View>
                                     </View>
+                                    <Text style={styles.addrText}>{addr.street}, {addr.city}, {addr.state} - {addr.zipCode}</Text>
+                                    <Text style={styles.addrText}>{addr.phone}</Text>
                                 </View>
-                                <Text style={styles.addrText}>{addr.address}</Text>
-                                <Text style={styles.addrText}>{addr.phone}</Text>
-                            </View>
-                            {selectedAddress === addr.id && (
-                                <Ionicons name="checkmark-circle" size={22} color="#007BFF" />
-                            )}
-                        </TouchableOpacity>
-                    ))}
+                                {selectedAddress === addr.id && (
+                                    <Ionicons name="checkmark-circle" size={22} color="#007BFF" />
+                                )}
+                            </TouchableOpacity>
+                        ))
+                    )}
                     <TouchableOpacity
                         style={[styles.rowItem, styles.separator, { justifyContent: 'center' }]}
-                        onPress={() => navigation.navigate('AddressBook')}
+                        onPress={() => navigation.navigate('AddressBook', {
+                            isSelectionMode: true
+                        })}
                     >
-                        <Text style={styles.actionText}>Add New Address</Text>
+                        <Text style={styles.actionText}>Select / Add Address</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -361,14 +418,17 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#FFF' },
+        backgroundColor: '#FFF'
+    },
     backBtn: {
         width: 40,
-        justifyContent: 'center' },
+        justifyContent: 'center'
+    },
     headerTitle: {
         fontSize: 17,
         fontWeight: '600',
-        color: '#000' },
+        color: '#000'
+    },
     scrollContent: {
         paddingTop: 20,
         paddingBottom: 120, // space for footer
@@ -379,85 +439,104 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         marginLeft: 16,
         marginBottom: 8,
-        textTransform: 'uppercase' },
+        textTransform: 'uppercase'
+    },
     groupContainer: {
         backgroundColor: '#FFF',
         borderRadius: 10,
         marginHorizontal: 16,
         marginBottom: 24,
-        overflow: 'hidden' },
+        overflow: 'hidden'
+    },
     rowItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 16,
-        backgroundColor: '#FFF' },
+        backgroundColor: '#FFF'
+    },
     separator: {
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#C6C6C8' },
+        borderBottomColor: '#C6C6C8'
+    },
     addrHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 4 },
+        marginBottom: 4
+    },
     addrName: {
         fontSize: 16,
         fontWeight: '600',
         color: '#000',
-        marginRight: 8 },
+        marginRight: 8
+    },
     tag: {
         backgroundColor: '#E5E5EA',
         paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 4 },
+        borderRadius: 4
+    },
     tagText: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#000' },
+        color: '#000'
+    },
     addrText: {
         fontSize: 14,
         color: '#3C3C43',
-        marginTop: 2 },
+        marginTop: 2
+    },
     actionText: {
         fontSize: 16,
-        color: '#007BFF' },
+        color: '#007BFF'
+    },
     paymentRow: {
         flexDirection: 'row',
-        alignItems: 'center' },
+        alignItems: 'center'
+    },
     paymentText: {
         fontSize: 16,
         marginLeft: 12,
-        color: '#000' },
+        color: '#000'
+    },
     radioCircle: {
         width: 22,
         height: 22,
         borderRadius: 11,
         borderWidth: 1.5,
-        borderColor: '#C6C6C8' },
+        borderColor: '#C6C6C8'
+    },
     expandedInput: {
         paddingHorizontal: 16,
         paddingBottom: 16,
-        backgroundColor: '#FFF' },
+        backgroundColor: '#FFF'
+    },
     inputField: {
         backgroundColor: '#F2F2F7',
         borderRadius: 8,
         paddingHorizontal: 12,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#000' },
+        color: '#000'
+    },
     summaryLabel: {
         fontSize: 16,
-        color: '#3C3C43' },
+        color: '#3C3C43'
+    },
     summaryValue: {
         fontSize: 16,
-        color: '#000' },
+        color: '#000'
+    },
     totalLabel: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000' },
+        color: '#000'
+    },
     totalValue: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000' },
+        color: '#000'
+    },
     rewardBanner: {
         marginHorizontal: 16,
         marginBottom: 24,
@@ -470,14 +549,17 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
-        elevation: 4 },
+        elevation: 4
+    },
     rewardTitle: {
         color: '#FFF',
         fontSize: 16,
-        fontWeight: 'bold' },
+        fontWeight: 'bold'
+    },
     rewardSubtitle: {
         color: 'rgba(255,255,255,0.8)',
-        fontSize: 13 },
+        fontSize: 13
+    },
     footer: {
         position: 'absolute',
         bottom: 0,
@@ -487,6 +569,8 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingHorizontal: 16,
         borderTopWidth: 1,
-        borderTopColor: '#C6C6C8' } });
+        borderTopColor: '#C6C6C8'
+    }
+});
 
 export default CheckoutScreen;

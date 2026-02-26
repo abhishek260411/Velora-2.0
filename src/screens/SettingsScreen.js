@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 const SettingsScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const [notifications, setNotifications] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
     const [location, setLocation] = useState(true);
 
     const SettingItem = ({ title, value, onValueChange, type = 'link', icon, color, isLast, onPress }) => (
@@ -63,14 +62,6 @@ const SettingsScreen = ({ navigation }) => {
                         icon="notifications"
                         color="#FF3B30"
                         onPress={() => navigation.navigate('NotificationSettings')}
-                    />
-                    <SettingItem
-                        title="Dark Mode"
-                        value={darkMode}
-                        onValueChange={setDarkMode}
-                        type="switch"
-                        icon="moon"
-                        color="#5856D6"
                     />
                     <SettingItem
                         title="Language"

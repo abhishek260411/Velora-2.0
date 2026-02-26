@@ -166,7 +166,7 @@ const SearchScreen = ({ navigation }) => {
                     )}
                 </View>
             ) : (
-                // Default View (Recent + Categories)
+                // Default View (Recent)
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                     {recentSearches.length > 0 && (
                         <View style={styles.section}>

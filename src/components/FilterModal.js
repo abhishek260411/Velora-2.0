@@ -13,11 +13,12 @@ const FilterModal = ({ visible, onClose, onApply, initialFilters }) => {
     // Mock Data for Filters
     const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     const colors = ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FFA500', '#800080'];
+    // Price ranges in INR to match the product catalog currency
     const prices = [
-        { label: 'Under ₹50', value: '0-50' },
-        { label: '₹50 - ₹100', value: '50-100' },
-        { label: '₹100 - ₹200', value: '100-200' },
-        { label: 'Over ₹200', value: '200' + '+' },
+        { label: 'Under ₹2,000', value: '0-2000' },
+        { label: '₹2,000 - ₹5,000', value: '2000-5000' },
+        { label: '₹5,000 - ₹10,000', value: '5000-10000' },
+        { label: 'Over ₹10,000', value: '10000+' },
     ];
 
     const toggleSelection = (item, list, setList) => {

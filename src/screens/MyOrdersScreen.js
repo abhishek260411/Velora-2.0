@@ -23,12 +23,12 @@ const MyOrdersScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [userData]);
-
-    const fetchOrders = async () => {
-        const currentUserId = userData?.uid || 'guest';
+    const fetchOrders = async (onCancelled) => {
+        if (!userData?.uid) {
+            setOrders([]);
+            setLoading(false);
+            return;
+        }
 
         try {
             setError(null);
@@ -36,24 +36,34 @@ const MyOrdersScreen = ({ navigation }) => {
 
             const q = query(
                 ordersRef,
-                where('userId', '==', currentUserId),
+                where('userId', '==', userData.uid),
                 orderBy('createdAt', 'desc')
             );
 
             const querySnapshot = await getDocs(q);
+            if (onCancelled?.()) return;
             const orderList = [];
             querySnapshot.forEach((doc) => {
                 orderList.push({ id: doc.id, ...doc.data() });
             });
             setOrders(orderList);
         } catch (err) {
+            if (onCancelled?.()) return;
             console.error("Error fetching orders:", err);
             setError(err.message || String(err));
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (!onCancelled?.()) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchOrders(() => cancelled);
+        return () => { cancelled = true; };
+    }, [userData]);
 
     const onRefresh = () => {
         setRefreshing(true);

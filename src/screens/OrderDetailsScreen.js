@@ -12,8 +12,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { updateDoc, doc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const OrderDetailsScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
@@ -46,7 +48,8 @@ const OrderDetailsScreen = ({ navigation, route }) => {
     const discount = order.discount > 0 ? formatCurrency(order.discount) : null;
     const address = order.shippingAddress || order.address || 'No address provided';
     const items = order.items || [];
-    const status = (order.status || 'Processing').charAt(0).toUpperCase() + (order.status || 'Processing').slice(1);
+    const rawStatus = order.status?.toLowerCase() || 'processing';
+    const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
     const id = order.id;
     if (!id) {
         return (
@@ -106,8 +109,126 @@ const OrderDetailsScreen = ({ navigation, route }) => {
         );
     };
 
-    const handleDownloadInvoice = () => {
-        Alert.alert("Invoice Download", "Invoice has been sent to your registered email.");
+    // HTML-escape helper to prevent user-controlled data from breaking the PDF
+    const escapeHtml = (str) => {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const handleDownloadInvoice = async () => {
+        try {
+            const html = `
+                <html>
+                    <head>
+                        <style>
+                            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
+                            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                            .header h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
+                            .header p { margin: 5px 0 0; color: #666; font-size: 14px; }
+                            .section { margin-bottom: 20px; }
+                            .section h2 { font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px; color: #000; }
+                            .details-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                            .details-table th, .details-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+                            .details-table th { font-weight: bold; background-color: #f9f9f9; }
+                            .summary-table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+                            .summary-table td { padding: 8px; text-align: right; border-bottom: 1px solid #eee; }
+                            .summary-table .label { font-weight: bold; }
+                            .summary-table .total-row { font-size: 18px; font-weight: bold; border-top: 2px solid #000; }
+                            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #ccc; padding-top: 10px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>VELORA</h1>
+                            <p>Order Invoice #${id.slice(0, 8).toUpperCase()}</p>
+                            <p>Status: ${status}</p>
+                        </div>
+                        
+                        <div class="section">
+                            <h2>Shipping To</h2>
+                            <p>${escapeHtml(address)}</p>
+                        </div>
+
+                        <div class="section">
+                            <h2>Items</h2>
+                            <table class="details-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Brand</th>
+                                        <th>Size</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(item => `
+                                        <tr>
+                                            <td>${escapeHtml(item.name)}</td>
+                                            <td>${escapeHtml(item.brand || 'N/A')}</td>
+                                            <td>${escapeHtml(item.size || 'N/A')}</td>
+                                            <td>${item.quantity || item.qty || 1}</td>
+                                            <td>${formatCurrency(item.price)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="section">
+                            <h2>Payment Summary</h2>
+                            <table class="summary-table">
+                                <tbody>
+                                    <tr>
+                                        <td class="label">Subtotal:</td>
+                                        <td>${subtotal}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Shipping:</td>
+                                        <td>${shipping}</td>
+                                    </tr>
+                                    ${discount ? `
+                                        <tr>
+                                            <td class="label" style="color: #28A745;">Discount:</td>
+                                            <td style="color: #28A745;">-${discount}</td>
+                                        </tr>
+                                    ` : ''}
+                                    <tr class="total-row">
+                                        <td class="label">Grand Total:</td>
+                                        <td>${total}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="footer">
+                            <p>Thank you for shopping with Velora!</p>
+                            <p>If you have any questions concerning this invoice, please contact support.</p>
+                        </div>
+                    </body>
+                </html>
+            `;
+
+            const { uri } = await Print.printToFileAsync({ html });
+
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(uri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: 'Download Invoice',
+                    UTI: 'com.adobe.pdf',
+                });
+            } else {
+                Alert.alert("Error", "Sharing is not available on this device");
+            }
+        } catch (error) {
+            console.error("Error generating invoice:", error);
+            Alert.alert("Error", "Failed to generate invoice");
+        }
     };
 
     return (

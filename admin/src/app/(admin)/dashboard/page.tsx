@@ -27,6 +27,7 @@ interface Order {
 export default function DashboardPage() {
     const router = useRouter();
     const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<string>("Just now");
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState({
@@ -52,9 +53,11 @@ export default function DashboardPage() {
             setRecentOrders(ordersData);
             setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
             setError(null);
+            setIsLoading(false);
         }, (err) => {
             console.error("Dashboard Sync Error:", err);
             setError("Unable to sync live data");
+            setIsLoading(false);
         });
 
         // Fetch Stats
@@ -219,7 +222,13 @@ export default function DashboardPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {recentOrders.length > 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-10 text-center text-sm text-gray-400 font-medium">
+                                        Loading...
+                                    </td>
+                                </tr>
+                            ) : recentOrders.length > 0 ? (
                                 recentOrders.map((order) => (
                                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-8 py-6 font-bold text-sm">#{order.id.slice(0, 8).toUpperCase()}</td>

@@ -61,7 +61,7 @@ const VeloraImage = ({ source, style, ...props }) => {
                 contentFit="cover"
                 transition={200}
                 onError={handleError}
-                onLoadEnd={handleLoadEnd}
+                onLoad={handleLoadEnd}
                 {...props}
             />
             {isLoading && (

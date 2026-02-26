@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,14 +18,29 @@ const TrackOrderScreen = ({ navigation, route }) => {
         { title: 'Delivered', date: 'Pending', completed: false, location: '-' },
     ];
 
+    if (!order?.id) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="alert-circle-outline" size={64} color="#8E8E93" />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: 'bold' }}>Order data unavailable</Text>
+                <TouchableOpacity
+                    style={{ marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#000', borderRadius: 8 }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     const orderData = {
         ...order,
-        id: order?.id || 'VL-2026-888',
-        status: order?.status || 'Shipped',
-        estimatedDelivery: order?.estimatedDelivery || 'Feb 14, 2026',
-        trackingNumber: order?.trackingNumber || 'TRK-9988776655',
-        courier: order?.courier || 'FedEx Express',
-        timeline: order?.timeline || defaultTimeline
+        id: order.id,
+        status: order.status || 'Shipped',
+        estimatedDelivery: order.estimatedDelivery || '--',
+        trackingNumber: order.trackingNumber || '--',
+        courier: order.courier || '--',
+        timeline: order.timeline || defaultTimeline
     };
 
     return (
@@ -50,7 +65,7 @@ const TrackOrderScreen = ({ navigation, route }) => {
                 <View style={styles.card}>
                     <View style={styles.row}>
                         <Text style={styles.label}>Order ID</Text>
-                        <Text style={styles.value}>#{orderData.id ? orderData.id.slice(0, 8).toUpperCase() : 'UNKNOWN'}</Text>
+                        <Text style={styles.value}>#{orderData.id.slice(0, 8).toUpperCase()}</Text>
                     </View>
                     <View style={styles.divider} />
                     <View style={styles.row}>

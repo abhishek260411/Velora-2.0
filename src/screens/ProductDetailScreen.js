@@ -17,22 +17,7 @@ const ProductDetailScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { product } = route.params || {};
 
-    if (!product) {
-        return (
-            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="alert-circle-outline" size={64} color="#C7C7CC" />
-                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: 'bold' }}>PRODUCT NOT FOUND</Text>
-                <TouchableOpacity
-                    style={{ marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#000', borderRadius: 8 }}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Go Back</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-    const activeProduct = product;
+    const activeProduct = product || {};
 
     const availableSizes = (activeProduct.sizes && Array.isArray(activeProduct.sizes) && activeProduct.sizes.length > 0)
         ? activeProduct.sizes
@@ -49,6 +34,7 @@ const ProductDetailScreen = ({ navigation, route }) => {
     const [newReviewText, setNewReviewText] = useState('');
     const [newReviewRating, setNewReviewRating] = useState(5);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [reviewsError, setReviewsError] = useState(null);
 
     const { addToCart } = useCart();
     const { user, userData } = useAuth();
@@ -83,17 +69,38 @@ const ProductDetailScreen = ({ navigation, route }) => {
                 setReviews(fetchedReviews);
             } catch (error) {
                 console.error("Error fetching reviews:", error);
-                // The index might not exist, but no error is surfaced to UI, just console log.
+                // Note: If this query fails due to a missing Firestore composite index,
+                // create one for collection 'reviews' with fields: productId (Ascending), createdAt (Descending)
+                setReviewsError('Unable to load reviews. Please try again later.');
             }
         };
         fetchReviews();
     }, [activeProduct.id]);
+
+    if (!product) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="alert-circle-outline" size={64} color="#C7C7CC" />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: 'bold' }}>PRODUCT NOT FOUND</Text>
+                <TouchableOpacity
+                    style={{ marginTop: 20, paddingHorizontal: 30, paddingVertical: 12, backgroundColor: '#000', borderRadius: 8 }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     const handleAddToCart = () => {
         setIsAddingToCart(true);
     };
 
     const handleSubmitReview = async () => {
+        if (!user?.uid) {
+            Alert.alert("Authentication Required", "Please log in to submit a review.");
+            return;
+        }
         if (!activeProduct.id) {
             Alert.alert("Error", "Product ID not found.");
             return;
@@ -106,8 +113,8 @@ const ProductDetailScreen = ({ navigation, route }) => {
         try {
             const newReview = {
                 productId: activeProduct.id,
-                userId: user?.uid || 'anonymous',
-                userName: userData?.displayName || userData?.firstName || (user?.email ? user.email.split('@')[0] : 'Customer'),
+                userId: user.uid,
+                userName: userData?.displayName || userData?.firstName || 'Customer',
                 rating: newReviewRating,
                 text: newReviewText,
                 createdAt: serverTimestamp()
@@ -232,11 +239,13 @@ const ProductDetailScreen = ({ navigation, route }) => {
                             </View>
                         </View>
 
-                        {reviews.length === 0 ? (
+                        {reviewsError ? (
+                            <Text style={styles.noReviewsText}>{reviewsError}</Text>
+                        ) : reviews.length === 0 ? (
                             <Text style={styles.noReviewsText}>No reviews yet. Be the first to review!</Text>
                         ) : (
-                            reviews.map(review => (
-                                <View key={review.id || Math.random().toString()} style={styles.reviewCard}>
+                            reviews.map((review, index) => (
+                                <View key={review.id || index.toString()} style={styles.reviewCard}>
                                     <View style={styles.reviewUser}>
                                         <View style={styles.avatarPlaceholder}>
                                             <Text style={styles.avatarText}>{(review.userName || 'C').charAt(0).toUpperCase()}</Text>

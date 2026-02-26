@@ -15,11 +15,15 @@ import { db } from '../config/firebase';
 import { collection, query, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { theme } from '../theme';
 
-const AddressBookScreen = ({ navigation }) => {
+const AddressBookScreen = ({ navigation, route }) => {
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const [addresses, setAddresses] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Check if we are selecting an address for checkout
+    const isSelectionMode = route.params?.isSelectionMode || false;
+    const { onSelectAddress } = route.params || {};
 
     useEffect(() => {
         fetchAddresses();
@@ -95,8 +99,27 @@ const AddressBookScreen = ({ navigation }) => {
         }
     };
 
+    const handleSelectAddress = (item) => {
+        if (isSelectionMode) {
+            if (onSelectAddress) {
+                onSelectAddress(item.id);
+                navigation.goBack();
+            } else {
+                navigation.navigate({
+                    name: 'Checkout',
+                    params: { selectedAddressId: item.id },
+                    merge: true
+                });
+            }
+        }
+    };
+
     const renderItem = ({ item }) => (
-        <View style={styles.addressCard}>
+        <TouchableOpacity
+            style={styles.addressCard}
+            onPress={() => handleSelectAddress(item)}
+            activeOpacity={isSelectionMode ? 0.7 : 1}
+        >
             <View style={styles.cardHeader}>
                 <View style={styles.typeTag}>
                     <Ionicons
@@ -119,28 +142,30 @@ const AddressBookScreen = ({ navigation }) => {
             </Text>
             <Text style={styles.phoneText}>Phone: {item.phone}</Text>
 
-            <View style={styles.actions}>
-                <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => navigation.navigate('AddEditAddress', { address: item })}
-                >
-                    <Ionicons name="pencil-outline" size={18} color="#007AFF" />
-                    <Text style={[styles.actionBtnText, { color: '#007AFF' }]}>Edit</Text>
-                </TouchableOpacity>
-
-                {!item.isDefault && (
-                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleSetDefault(item)}>
-                        <Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />
-                        <Text style={[styles.actionBtnText, { color: '#34C759' }]}>Set Default</Text>
+            {!isSelectionMode && (
+                <View style={styles.actions}>
+                    <TouchableOpacity
+                        style={styles.actionBtn}
+                        onPress={() => navigation.navigate('AddEditAddress', { address: item })}
+                    >
+                        <Ionicons name="pencil-outline" size={18} color="#007AFF" />
+                        <Text style={[styles.actionBtnText, { color: '#007AFF' }]}>Edit</Text>
                     </TouchableOpacity>
-                )}
 
-                <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
-                    <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                    <Text style={[styles.actionBtnText, { color: '#FF3B30' }]}>Delete</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+                    {!item.isDefault && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => handleSetDefault(item)}>
+                            <Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />
+                            <Text style={[styles.actionBtnText, { color: '#34C759' }]}>Set Default</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
+                        <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                        <Text style={[styles.actionBtnText, { color: '#FF3B30' }]}>Delete</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </TouchableOpacity>
     );
 
     return (

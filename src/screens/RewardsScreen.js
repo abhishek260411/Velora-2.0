@@ -15,7 +15,8 @@ const RewardsScreen = ({ navigation }) => {
     const handleShareReferral = async () => {
         try {
             await Share.share({
-                message: `Shop on Velora using my code ${referralCode} to get 100 bonus coins! Download now: https://velora.shop` });
+                message: `Shop on Velora using my code ${referralCode} to get 500 bonus coins! Download now: https://velora.shop`
+            });
         } catch (error) {
             console.error(error);
         }
@@ -138,7 +139,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F7' },
+        borderBottomColor: '#F2F2F7'
+    },
     backButton: { padding: 4 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
     content: { padding: 20 },

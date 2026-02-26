@@ -56,7 +56,13 @@ const BrandCollectionScreen = ({ navigation, route }) => {
                     ListHeaderComponent={
                         brandLogo ? (
                             <View style={styles.brandHeader}>
-                                <Image source={{ uri: brandLogo }} style={styles.brandLogo} contentFit="contain" />
+                                <Image
+                                    source={{ uri: brandLogo }}
+                                    style={styles.brandLogo}
+                                    contentFit="contain"
+                                    alt={brandName ? `${brandName} logo` : 'Brand logo'}
+                                    accessibilityLabel={brandName ? `${brandName} logo` : 'Brand logo'}
+                                />
                                 <Text style={styles.brandDesc}>Explore the latest collection from {brandName}.</Text>
                             </View>
                         ) : null

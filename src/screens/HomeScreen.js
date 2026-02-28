@@ -33,7 +33,7 @@ const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite,
             activeOpacity={0.8}
         >
             <View style={styles.productImageWrap}>
-                <Image source={{ uri: image }} style={styles.productImage} contentFit="cover" />
+                <Image source={{ uri: image }} style={styles.productImage} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
                 <TouchableOpacity
                     style={styles.favBtn}
                     onPress={() => onToggleFavorite?.(id)}
@@ -113,7 +113,7 @@ const HomeScreen = ({ navigation }) => {
 
     const renderHeroCard = (title, subtitle, image, category) => (
         <TouchableOpacity style={styles.heroCard} activeOpacity={0.9} onPress={() => navigation.navigate('ProductListing', { category })}>
-            <Image source={{ uri: image }} style={styles.heroImage} contentFit="cover" />
+            <Image source={{ uri: image }} style={styles.heroImage} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
             <View style={styles.heroOverlay} />
             <View style={styles.heroContent}>
                 <Text style={styles.heroSubtitle}>{subtitle}</Text>
@@ -190,6 +190,7 @@ const HomeScreen = ({ navigation }) => {
                             source={{ uri: userData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }}
                             style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#E1E1E1' }}
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                         />
                         <View>
                             <Text style={styles.username}>{firstName}</Text>

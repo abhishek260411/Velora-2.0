@@ -5,7 +5,8 @@ import {
     Text,
     StyleSheet,
     Animated,
-    Dimensions } from 'react-native';
+    Dimensions
+} from 'react-native';
 import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -65,13 +66,14 @@ const DynamicIslandAlert = ({ visible, message, image, onClose }) => {
         width: widthAnim.interpolate({
             inputRange: [0, 1],
             outputRange: [120, width - 40]
-        }) };
+        })
+    };
 
     return (
         <View style={[styles.container, { top: insets.top + 10 }]}>
             <Animated.View style={[styles.island, dynamicUnfold]}>
                 <View style={styles.content}>
-                    {image && <Image source={{ uri: image }} style={styles.thumb} />}
+                    {image && <Image source={{ uri: image }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />}
                     <View style={styles.textContainer}>
                         <Text style={styles.message} numberOfLines={1}>{message}</Text>
                         <Text style={styles.subtext}>Added to bag</Text>
@@ -88,7 +90,8 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         alignItems: 'center',
-        zIndex: 9999 },
+        zIndex: 9999
+    },
     island: {
         height: 60,
         backgroundColor: 'black',
@@ -101,7 +104,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        paddingLeft: 4 },
+        paddingLeft: 4
+    },
     thumb: {
         width: 40,
         height: 40,
@@ -111,14 +115,17 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         flex: 1,
-        justifyContent: 'center' },
+        justifyContent: 'center'
+    },
     message: {
         color: 'white',
         fontWeight: 'bold',
-        fontSize: 14 },
+        fontSize: 14
+    },
     subtext: {
         color: '#888',
-        fontSize: 12 }
+        fontSize: 12
+    }
 });
 
 export default DynamicIslandAlert;

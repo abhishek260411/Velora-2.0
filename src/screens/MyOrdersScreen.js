@@ -150,7 +150,7 @@ const MyOrdersScreen = ({ navigation }) => {
                                 activeOpacity={0.9}
                             >
                                 <View style={styles.cardTop}>
-                                    <Image source={{ uri: firstImage }} style={styles.orderImage} contentFit="cover" />
+                                    <Image source={{ uri: firstImage }} style={styles.orderImage} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
                                     <View style={styles.orderInfo}>
                                         <View style={styles.infoRow}>
                                             <Text style={styles.orderId}>#{order.id.slice(0, 8).toUpperCase()}</Text>

@@ -274,7 +274,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     <Text style={styles.sectionTitle}>ITEMS ({items.length})</Text>
                     {items.map((item, index) => (
                         <View key={index} style={styles.itemRow}>
-                            <Image source={{ uri: item.image }} style={styles.itemImg} contentFit="cover" />
+                            <Image source={{ uri: item.image }} style={styles.itemImg} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
                             <View style={styles.itemInfo}>
                                 <Text style={styles.itemBrand}>{item.brand}</Text>
                                 <Text style={styles.itemName}>{item.name}</Text>

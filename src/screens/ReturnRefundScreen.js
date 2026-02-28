@@ -74,7 +74,7 @@ const ReturnRefundScreen = ({ navigation, route }) => {
                 {/* Item Card */}
                 <Text style={styles.sectionTitle}>ITEM TO RETURN</Text>
                 <View style={styles.itemCard}>
-                    <Image source={{ uri: itemToReturn.image }} style={styles.itemImage} contentFit="cover" />
+                    <Image source={{ uri: itemToReturn.image }} style={styles.itemImage} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
                     <View style={styles.itemInfo}>
                         <Text style={styles.brand}>{itemToReturn.brand}</Text>
                         <Text style={styles.name}>{itemToReturn.name}</Text>

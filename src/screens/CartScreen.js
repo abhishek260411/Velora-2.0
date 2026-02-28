@@ -49,7 +49,7 @@ const CartScreen = ({ navigation }) => {
         return (
             <View key={`${item.id}-${item.size}`} style={styles.cartItemContainer}>
                 <View style={styles.cartItemRow}>
-                    <Image source={{ uri: item.image }} style={styles.itemImage} contentFit="cover" />
+                    <Image source={{ uri: item.image }} style={styles.itemImage} contentFit="cover" cachePolicy="memory-disk" transition={300} placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }} />
                     <View style={styles.itemInfo}>
                         <View style={styles.itemHeader}>
                             <View style={styles.itemMeta}>

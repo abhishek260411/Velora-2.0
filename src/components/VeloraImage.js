@@ -59,7 +59,9 @@ const VeloraImage = ({ source, style, ...props }) => {
                 source={source}
                 style={[StyleSheet.absoluteFill, styles.image]}
                 contentFit="cover"
-                transition={200}
+                transition={300}
+                cachePolicy="memory-disk"
+                placeholder={{ blurhash: 'L9AB*A%N00~q~q-;M{t700~q00Rj' }}
                 onError={handleError}
                 onLoad={handleLoadEnd}
                 {...props}

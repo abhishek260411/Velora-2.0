@@ -131,7 +131,14 @@ const ProductListingScreen = ({ navigation, route }) => {
             <View style={styles.productMeta}>
                 <Text style={styles.brand}>{item.brand}</Text>
                 <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.price}>₹{item.price}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.price, { color: item.originalPrice ? '#FF3B30' : '#000' }]}>₹{item.price}</Text>
+                    {!!item.originalPrice && (
+                        <Text style={styles.originalPrice}>
+                            {String(item.originalPrice).startsWith('₹') ? item.originalPrice : `₹${item.originalPrice}`}
+                        </Text>
+                    )}
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -324,6 +331,12 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: '#000'
+    },
+    originalPrice: {
+        fontSize: 11,
+        color: '#999',
+        textDecorationLine: 'line-through',
+        marginLeft: 6
     }
 });
 

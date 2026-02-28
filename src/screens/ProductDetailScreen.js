@@ -39,6 +39,12 @@ const ProductDetailScreen = ({ navigation, route }) => {
     const { addToCart } = useCart();
     const { user, userData } = useAuth();
 
+    const formatPrice = (priceVal) => {
+        if (!priceVal) return '₹0';
+        const strPrice = String(priceVal);
+        return strPrice.startsWith('₹') ? strPrice : `₹${strPrice}`;
+    };
+
     useEffect(() => {
         let timeout;
         if (isAddingToCart) {
@@ -169,7 +175,16 @@ const ProductDetailScreen = ({ navigation, route }) => {
                             <Text style={styles.tag}>{activeProduct.tag || 'BESTSELLER'}</Text>
                             <Text style={styles.title}>{activeProduct.name}</Text>
                         </View>
-                        <Text style={styles.price}>{activeProduct.price}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.price, { color: activeProduct.originalPrice ? '#FF3B30' : '#000' }]}>
+                                {formatPrice(activeProduct.price)}
+                            </Text>
+                            {!!activeProduct.originalPrice && (
+                                <Text style={styles.originalPrice}>
+                                    {formatPrice(activeProduct.originalPrice)}
+                                </Text>
+                            )}
+                        </View>
                     </View>
 
                     <Text style={styles.description}>
@@ -276,7 +291,7 @@ const ProductDetailScreen = ({ navigation, route }) => {
             <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
                 <View style={styles.totalContainer}>
                     <Text style={styles.totalLabel}>TOTAL</Text>
-                    <Text style={styles.totalPrice}>{activeProduct.price}</Text>
+                    <Text style={styles.totalPrice}>{formatPrice(activeProduct.price)}</Text>
                 </View>
                 <View style={styles.swipeContainer}>
                     <SwipeButton
@@ -380,6 +395,12 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         color: '#000',
+    },
+    originalPrice: {
+        fontSize: 14,
+        color: '#8E8E93',
+        textDecorationLine: 'line-through',
+        marginTop: 2,
     },
     description: {
         fontSize: 14,

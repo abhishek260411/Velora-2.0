@@ -46,7 +46,14 @@ const ProductCard = ({ id, title, price, image, isFav = false, onToggleFavorite,
                 </TouchableOpacity>
             </View>
             <Text style={styles.productTitle} numberOfLines={1}>{title}</Text>
-            <Text style={styles.productPrice}>{price}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                <Text style={[styles.productPrice, { color: product?.originalPrice ? '#FF3B30' : '#8E8E93' }]}>{price}</Text>
+                {!!product?.originalPrice && (
+                    <Text style={{ fontSize: 12, color: '#C7C7CC', textDecorationLine: 'line-through', marginLeft: 6 }}>
+                        {String(product.originalPrice).startsWith('₹') ? product.originalPrice : `₹${product.originalPrice}`}
+                    </Text>
+                )}
+            </View>
         </TouchableOpacity>
     );
 };

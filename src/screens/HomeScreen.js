@@ -10,8 +10,7 @@ import {
     TouchableOpacity,
     Dimensions,
     Platform,
-    ActivityIndicator,
-    Image as RNImage
+    ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -204,10 +203,7 @@ const HomeScreen = ({ navigation }) => {
                         <Text style={styles.username} numberOfLines={1}>{firstName}</Text>
                     </TouchableOpacity>
 
-                    {/* Center: App Logo */}
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <RNImage source={require('../../assets/app-logo.png')} resizeMode="contain" style={{ width: 40, height: 40 }} />
-                    </View>
+
 
                     {/* Right: Notifications */}
                     <TouchableOpacity

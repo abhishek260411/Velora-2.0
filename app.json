@@ -11,11 +11,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.abhishek260411.velora",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/app-logo.png",
         "backgroundColor": "#ffffff"

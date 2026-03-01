@@ -87,4 +87,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export default ProductCardHorizontal;
+export default React.memo(ProductCardHorizontal);

@@ -81,6 +81,10 @@ const BrandCollectionScreen = ({ navigation, route }) => {
                             <Text style={styles.emptyText}>No products found for {brandName}.</Text>
                         </View>
                     }
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
                 />
             )}
         </View>

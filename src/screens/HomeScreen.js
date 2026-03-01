@@ -10,7 +10,8 @@ import {
     TouchableOpacity,
     Dimensions,
     Platform,
-    ActivityIndicator
+    ActivityIndicator,
+    Image as RNImage
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -189,8 +190,9 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.container}>
             <SafeAreaView edges={['top']} style={styles.safeArea}>
                 <View style={styles.header}>
+                    {/* Left: Profile */}
                     <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                         onPress={() => navigation.navigate('ProfileTab')}
                     >
                         <Image
@@ -199,16 +201,23 @@ const HomeScreen = ({ navigation }) => {
                             contentFit="cover"
                             cachePolicy="memory-disk"
                         />
-                        <View>
-                            <Text style={styles.username}>{firstName}</Text>
-                        </View>
+                        <Text style={styles.username} numberOfLines={1}>{firstName}</Text>
                     </TouchableOpacity>
+
+                    {/* Center: App Logo */}
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                        <RNImage source={require('../../assets/app-logo.png')} resizeMode="contain" style={{ width: 40, height: 40 }} />
+                    </View>
+
+                    {/* Right: Notifications */}
                     <TouchableOpacity
-                        style={styles.iconBtn}
+                        style={[styles.iconBtn, { flex: 1, alignItems: 'flex-end', backgroundColor: 'transparent' }]}
                         onPress={() => navigation.navigate('Notifications')}
                     >
-                        <Ionicons name="notifications-outline" size={24} color="#000" />
-                        {unreadCount > 0 && <View style={styles.badge} />}
+                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F2F2F7', justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="notifications-outline" size={24} color="#000" />
+                            {unreadCount > 0 && <View style={styles.badge} />}
+                        </View>
                     </TouchableOpacity>
                 </View>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform, Image } from 'react-native';
 import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -45,7 +45,7 @@ const SplashScreen = ({ navigation }) => {
                 styles.logoContainer,
                 { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }
             ]}>
-                <Text style={styles.logo}>VELORA</Text>
+                <Image source={require('../../assets/app-logo.png')} style={styles.logoImage} />
             </Animated.View>
 
             <Animated.View style={[styles.taglineContainer, { opacity: textAnim }]}>
@@ -64,6 +64,11 @@ const styles = StyleSheet.create({
     },
     logoContainer: {
         marginBottom: 20,
+    },
+    logoImage: {
+        width: 150,
+        height: 150,
+        resizeMode: 'contain',
     },
     logo: {
         fontSize: 48,
